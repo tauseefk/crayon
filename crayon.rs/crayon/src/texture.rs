@@ -1,12 +1,16 @@
-pub struct AWTexture {
+pub struct CRTexture {
     #[allow(unused)]
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub sampler: wgpu::Sampler,
 }
 
-impl AWTexture {
-    pub fn render_texture(device: &wgpu::Device, dimensions: (u32, u32), label: &str) -> Self {
+impl CRTexture {
+    pub fn create_render_texture(
+        device: &wgpu::Device,
+        dimensions: (u32, u32),
+        label: &str,
+    ) -> Self {
         #[cfg(target_arch = "wasm32")]
         let dimensions = (
             if dimensions.0 == 0 {

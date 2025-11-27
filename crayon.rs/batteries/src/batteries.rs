@@ -91,7 +91,6 @@ pub fn eval_bezier(dots: Dot2Dx4, dots_count: usize) -> Vec<Dot2D> {
     out_dots
 }
 
-/// Returns a closure that filters points by measuring the distance between subsequent points.
 /// Only allows points that are a minimum `distance` away from each other.
 ///
 pub struct DistanceFilter {

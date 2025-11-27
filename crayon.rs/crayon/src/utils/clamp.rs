@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-/// Clamp the translation so the canvas or tools doesn't move out of the viewport
+/// Clamp the translation so the canvas or tool doesn't move out of the viewport
 pub fn clamp_point(translation: Point2<f32>) -> Point2<f32> {
     Point2 {
         x: translation.x.clamp(TRANSLATION_MIN_X, TRANSLATION_MAX_X),

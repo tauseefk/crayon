@@ -18,12 +18,18 @@ pub struct RendererState {
     pub config: wgpu::SurfaceConfiguration,
     pub camera_uniform: CameraUniform,
     pub display_vertex_buffer: wgpu::Buffer,
-    pub display_index_buffer: wgpu::Buffer,
-    pub display_vertex_uniform_buffer: wgpu::Buffer,
-    pub display_fragment_bind_group: wgpu::BindGroup,
     pub display_vertex_bind_group: wgpu::BindGroup,
+    pub display_vertex_uniform_buffer: wgpu::Buffer,
+    /// bind group for `ping` shader
+    pub display_fragment_bind_group_a: wgpu::BindGroup,
+    /// bind group for `pong` shader
+    pub display_fragment_bind_group_b: wgpu::BindGroup,
+    pub display_index_buffer: wgpu::Buffer,
     pub display_pipeline: wgpu::RenderPipeline,
-    pub render_texture: AWTexture,
+    /// ping texture
+    pub render_texture_a: CRTexture,
+    /// pong texture
+    pub render_texture_b: CRTexture,
 }
 
 impl RendererState {
@@ -33,6 +39,8 @@ impl RendererState {
         #[allow(unused_mut)]
         let mut size = window.inner_size();
 
+        // window resizing events on the browser can cause problems,
+        // so override with default size
         #[cfg(target_arch = "wasm32")]
         {
             size.width = WINDOW_SIZE.0;
@@ -97,8 +105,17 @@ impl RendererState {
         // -------- FRAGMENT -------- //
         // -------------------------- //
 
-        let render_texture =
-            AWTexture::render_texture(&device, window.inner_size().into(), "Render Texture");
+        let render_texture_a = CRTexture::create_render_texture(
+            &device,
+            window.inner_size().into(),
+            "Render Texture A (ping)",
+        );
+
+        let render_texture_b = CRTexture::create_render_texture(
+            &device,
+            window.inner_size().into(),
+            "Render Texture B (pong)",
+        );
 
         let display_fragment_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -123,19 +140,34 @@ impl RendererState {
                 label: Some("Display Fragment Bind Group Layout"),
             });
 
-        let display_fragment_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let display_fragment_bind_group_a = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &display_fragment_bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&render_texture.view),
+                    resource: wgpu::BindingResource::TextureView(&render_texture_a.view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&render_texture.sampler),
+                    resource: wgpu::BindingResource::Sampler(&render_texture_a.sampler),
                 },
             ],
             label: Some("Display Fragment Bind Group"),
+        });
+
+        let display_fragment_bind_group_b = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &display_fragment_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&render_texture_b.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&render_texture_b.sampler),
+                },
+            ],
+            label: Some("Display Fragment Bind Group B"),
         });
 
         // -------------------------- //
@@ -225,9 +257,11 @@ impl RendererState {
             display_vertex_buffer,
             display_vertex_uniform_buffer,
             display_index_buffer,
-            display_fragment_bind_group,
+            display_fragment_bind_group_a,
+            display_fragment_bind_group_b,
             display_pipeline,
-            render_texture,
+            render_texture_a,
+            render_texture_b,
         })
     }
 }
