@@ -1,0 +1,206 @@
+use winit::event_loop::EventLoopProxy;
+
+use crate::prelude::*;
+
+pub struct App {
+    proxy: Option<winit::event_loop::EventLoopProxy<CustomEvent>>,
+    state: Option<State>,
+    window: Option<Arc<winit::window::Window>>,
+    camera_controller: Option<CameraController>,
+    brush_controller: Option<BrushController>,
+}
+
+impl App {
+    pub fn new(event_loop_proxy: EventLoopProxy<CustomEvent>) -> Self {
+        let event_sender = EventSender::new(event_loop_proxy.clone());
+        Self {
+            proxy: Some(event_loop_proxy),
+            state: None,
+            window: None,
+            camera_controller: Some(CameraController::new(event_sender.clone())),
+            brush_controller: Some(BrushController::new(event_sender)),
+        }
+    }
+}
+
+impl ApplicationHandler<CustomEvent> for App {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        #[allow(unused_mut)]
+        let mut window_attributes = Window::default_attributes()
+            .with_title("Crayon")
+            .with_inner_size(LogicalSize::new(WINDOW_SIZE.0, WINDOW_SIZE.1));
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            use wasm_bindgen::JsCast;
+            use winit::platform::web::WindowAttributesExtWebSys;
+
+            const CANVAS_ID: &str = "canvas";
+
+            let window = wgpu::web_sys::window().unwrap_throw();
+            let document = window.document().unwrap_throw();
+            let canvas = document.get_element_by_id(CANVAS_ID).unwrap_throw();
+            let html_canvas_element = canvas.unchecked_into();
+            window_attributes = window_attributes.with_canvas(Some(html_canvas_element));
+        }
+        let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
+        self.window = Some(window.clone());
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            match (self.proxy.clone(), self.window.clone()) {
+                (Some(_), Some(window)) => {
+                    let state = futures::executor::block_on(State::new(window.clone())).unwrap();
+
+                    self.state = Some(state);
+                }
+                (_, _) => {}
+            }
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            let window_for_wasm = window.clone();
+            // Run the future asynchronously and use the
+            // proxy to send the results to the event loop
+            if let Some(proxy) = self.proxy.take() {
+                wasm_bindgen_futures::spawn_local(async move {
+                    let state = State::new(window_for_wasm)
+                        .await
+                        .expect("Unable to create canvas!!!");
+                    assert!(
+                        proxy
+                            .send_event(CustomEvent::CanvasCreated { state })
+                            .is_ok()
+                    );
+                });
+            }
+        }
+
+        window.request_redraw();
+    }
+
+    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: CustomEvent) {
+        match event {
+            CustomEvent::ClearCanvas => {
+                if let Some(state) = &mut self.state {
+                    state.clear_render_texture();
+                    if let Some(window) = &self.window {
+                        window.request_redraw();
+                    }
+                }
+            }
+            CustomEvent::CameraMove { position } => {
+                if let Some(window) = &self.window {
+                    let window_size = window.inner_size();
+
+                    if let Some(state) = &mut self.state {
+                        let world_translation = screen_to_world_position(
+                            position,
+                            (window_size.width as f32, window_size.height as f32),
+                        );
+
+                        state.camera.translation = clamp::clamp_point(world_translation);
+                        state.update_display();
+                        window.request_redraw();
+                    }
+                }
+            }
+            CustomEvent::CameraZoom { delta } => {
+                if let Some(state) = &mut self.state {
+                    state.camera.scale = clamp::clamp_zoom(state.camera.scale, delta);
+                    state.update_display();
+                    if let Some(window) = &self.window {
+                        window.request_redraw();
+                    }
+                }
+            }
+            CustomEvent::BrushPoint { position } => {
+                if let Some(window) = &self.window {
+                    let window_size = window.inner_size();
+
+                    let brush_position = world_to_ndc(
+                        position,
+                        (window_size.width as f32, window_size.height as f32),
+                    );
+                    let clamped_position = clamp::clamp_point(brush_position);
+
+                    if let Some(state) = &mut self.state {
+                        state.update_brush(clamped_position);
+                        // this renders as many brush points as recevied events
+                        match state.render_to_world_texture() {
+                            Ok(_) => {}
+                            Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                                let size = state.window.inner_size();
+                                state.resize(size.width, size.height);
+                            }
+                            Err(e) => {
+                                log::error!("Unable to render to display {}", e);
+                            }
+                        }
+                        window.request_redraw();
+                    }
+                }
+            }
+            CustomEvent::_UiUpdate => {
+                // this is useful for syncing UI with tools eg. UI needs to show a larger brush pointer when zoomed in
+                todo!();
+            }
+            CustomEvent::CanvasCreated { state } => {
+                self.state = Some(state);
+            }
+        }
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        _window_id: winit::window::WindowId,
+        event: WindowEvent,
+    ) {
+        let app_state = match &mut self.state {
+            Some(app_state) => app_state,
+            None => return,
+        };
+
+        match event {
+            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::Resized(size) => app_state.resize(size.width, size.height),
+            WindowEvent::RedrawRequested => match app_state.display_world_texture() {
+                Ok(_) => {}
+                Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                    let size = app_state.window.inner_size();
+                    app_state.resize(size.width, size.height);
+                }
+                Err(e) => {
+                    log::error!("Unable to render to display {}", e);
+                }
+            },
+            event => {
+                if let Some(brush_controller) = &mut self.brush_controller {
+                    brush_controller.process_event(&event);
+                }
+                if let Some(camera_controller) = &mut self.camera_controller {
+                    camera_controller.process_event(&event);
+                }
+
+                match event {
+                    WindowEvent::KeyboardInput {
+                        event:
+                            KeyEvent {
+                                physical_key: PhysicalKey::Code(code),
+                                state: key_state,
+                                ..
+                            },
+                        ..
+                    } => {
+                        if let (KeyCode::Escape, true) = (code, key_state.is_pressed()) {
+                            event_loop.exit()
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+}

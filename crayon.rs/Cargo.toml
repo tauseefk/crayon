@@ -1,0 +1,30 @@
+[workspace]
+resolver = "2"
+
+members = ["crayon", "batteries"]
+
+[workspace.dependencies]
+anyhow = "1.0.99"
+bytemuck = { version = "1.23.2", features = ["derive"] }
+cgmath = "0.18"
+console_log = "1.0.0"
+console_error_panic_hook = "0.1.7"
+env_logger = "0.11.8"
+futures = "0.3.31"
+js-sys = "0.3.69"
+log = "0.4.27"
+pollster = "0.4.0"
+wasm-bindgen = "0.2.92"
+wasm-bindgen-futures = "0.4.50"
+web-sys = { version = "0.3.77", features = ["console"] }
+wgpu = "26.0.1"
+winit = "0.30.12"
+
+[profile.release]
+lto = "fat"
+opt-level = 3
+codegen-units = 1
+debug = 2
+panic = "abort"
+# comment the following to profile with Instruments
+strip = "debuginfo"

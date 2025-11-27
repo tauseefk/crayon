@@ -1,0 +1,15 @@
+[package]
+name = "batteries"
+version = "0.1.0"
+edition = "2024"
+publish = false
+authors = ["Tauseef Khan", "Tauseef Khan <tauseef25@gmail.com>"]
+description = "Draw something"
+repository = "https://github.com/tauseefk/crayon"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+wasm-bindgen = { workspace = true }
+cgmath = { workspace = true }
