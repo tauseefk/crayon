@@ -84,7 +84,7 @@ impl ApplicationHandler<CustomEvent> for App {
         match event {
             CustomEvent::ClearCanvas => {
                 if let Some(state) = &mut self.state {
-                    state.clear_render_texture();
+                    state.clear_canvas();
                     if let Some(window) = &self.window {
                         window.request_redraw();
                     }
@@ -100,16 +100,20 @@ impl ApplicationHandler<CustomEvent> for App {
                             (window_size.width as f32, window_size.height as f32),
                         );
 
-                        state.camera.translation = clamp::clamp_point(world_translation);
-                        state.update_display();
+                        state.update_camera(Some(CameraTransform {
+                            translation: Some(clamp::clamp_point(world_translation)),
+                            ..Default::default()
+                        }));
                         window.request_redraw();
                     }
                 }
             }
             CustomEvent::CameraZoom { delta } => {
                 if let Some(state) = &mut self.state {
-                    state.camera.scale = clamp::clamp_zoom(state.camera.scale, delta);
-                    state.update_display();
+                    state.update_camera(Some(CameraTransform {
+                        scale_delta: Some(delta),
+                        ..Default::default()
+                    }));
                     if let Some(window) = &self.window {
                         window.request_redraw();
                     }
@@ -126,8 +130,8 @@ impl ApplicationHandler<CustomEvent> for App {
                     let clamped_position = clamp::clamp_point(brush_position);
 
                     if let Some(state) = &mut self.state {
-                        state.update_unified_brush(clamped_position);
-                        state.accumulate_brush_to_texture();
+                        state.update_paint(clamped_position);
+                        state.paint_to_texture();
                         window.request_redraw();
                     }
                 }
@@ -154,10 +158,11 @@ impl ApplicationHandler<CustomEvent> for App {
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => app_state.resize(size.width, size.height),
-            WindowEvent::RedrawRequested => match app_state.unified_render() {
+            WindowEvent::RedrawRequested => match app_state.render() {
                 Ok(_) => {}
                 Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                    let size = app_state.window.inner_size();
+                    // re-configure to the same window size as the one just lost
+                    let size = app_state.get_window_size();
                     app_state.resize(size.width, size.height);
                 }
                 Err(e) => {

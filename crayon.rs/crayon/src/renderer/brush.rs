@@ -6,7 +6,7 @@ const DEFAULT_BRUSH_POSITION: f32 = 2.0;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct UnifiedBrushUniform {
+pub struct BrushFragmentUniform {
     color: [f32; 4],
     sharpness: f32,
     size: f32,
@@ -14,7 +14,7 @@ pub struct UnifiedBrushUniform {
     inverse_view_projection: [[f32; 4]; 4],
 }
 
-impl UnifiedBrushUniform {
+impl BrushFragmentUniform {
     pub fn new() -> Self {
         use cgmath::SquareMatrix;
         Self {

@@ -67,24 +67,48 @@ impl CameraUniform {
     }
 }
 
+#[derive(Default)]
+pub struct CameraTransform {
+    pub scale_delta: Option<f32>,
+    pub translation: Option<cgmath::Point2<f32>>,
+}
+
 pub struct Camera2D {
     /// remains the same in both axes
-    pub scale: f32,
-    pub translation: cgmath::Point2<f32>,
-    pub aspect_ratio: f32,
+    scale: f32,
+    translation: cgmath::Point2<f32>,
+    aspect_ratio: f32,
 }
 
 impl Camera2D {
+    pub fn new() -> Self {
+        Self {
+            scale: DEFAULT_CANVAS_ZOOM,
+            translation: cgmath::Point2::origin(),
+            aspect_ratio: 1.0,
+        }
+    }
+
+    pub fn update(&mut self, transform: CameraTransform) {
+        let CameraTransform {
+            scale_delta,
+            translation,
+        } = transform;
+        if let Some(scale_delta) = scale_delta {
+            self.scale = clamp::clamp_zoom(self.scale, scale_delta);
+        }
+        if let Some(translation) = translation {
+            self.translation = translation;
+        }
+    }
+
     pub fn update_aspect_ratio(&mut self, width: f32, height: f32) {
         self.aspect_ratio = width / height;
     }
 
     pub fn build_2d_transform_matrix(&self) -> cgmath::Matrix4<f32> {
-        let scale_matrix = cgmath::Matrix4::from_nonuniform_scale(
-            self.scale, 
-            self.scale * self.aspect_ratio, 
-            1.0
-        );
+        let scale_matrix =
+            cgmath::Matrix4::from_nonuniform_scale(self.scale, self.scale * self.aspect_ratio, 1.0);
 
         let translation_matrix = cgmath::Matrix4::from_translation(cgmath::Vector3::new(
             self.translation.x,
@@ -98,9 +122,9 @@ impl Camera2D {
 
     pub fn build_2d_inverse_transform_matrix(&self) -> cgmath::Matrix4<f32> {
         let scale_matrix = cgmath::Matrix4::from_nonuniform_scale(
-            1.0 / self.scale, 
-            1.0 / (self.scale * self.aspect_ratio), 
-            1.0
+            1.0 / self.scale,
+            1.0 / (self.scale * self.aspect_ratio),
+            1.0,
         );
 
         let translation_matrix = cgmath::Matrix4::from_translation(cgmath::Vector3::new(
