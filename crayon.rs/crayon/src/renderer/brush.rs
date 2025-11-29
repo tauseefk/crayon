@@ -1,7 +1,8 @@
 use crate::prelude::*;
 
-const BRUSH_SIZE: f32 = 40.0 * 0.001667;
-const BRUSH_SHARPNESS: f32 = 0.2;
+pub const BRUSH_SIZE: f32 = 40.0 * 0.001_667;
+pub const BRUSH_STEP_SIZE: f32 = 1.0;
+const BRUSH_SHARPNESS: f32 = 0.4;
 const DEFAULT_BRUSH_POSITION: f32 = 2.0;
 
 #[repr(C)]
@@ -17,6 +18,7 @@ pub struct BrushFragmentUniform {
 impl BrushFragmentUniform {
     pub fn new() -> Self {
         use cgmath::SquareMatrix;
+        #[allow(clippy::cast_possible_truncation)]
         Self {
             color: [
                 DEFAULT_BRUSH_COLOR.r as f32,
@@ -31,8 +33,9 @@ impl BrushFragmentUniform {
         }
     }
 
-    pub fn update_position(&mut self, position: cgmath::Point2<f32>) {
-        self.position = [position.x, position.y];
+    pub fn update_dot(&mut self, dot: &Dot2D) {
+        self.position = [dot.position.x, dot.position.y];
+        self.size = dot.radius;
     }
 
     pub fn update_inverse_view_projection(&mut self, camera: &Camera2D) {

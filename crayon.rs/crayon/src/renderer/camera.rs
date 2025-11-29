@@ -89,16 +89,16 @@ impl Camera2D {
         }
     }
 
-    pub fn update(&mut self, transform: CameraTransform) {
+    pub fn update(&mut self, transform: &CameraTransform) {
         let CameraTransform {
             scale_delta,
             translation,
         } = transform;
         if let Some(scale_delta) = scale_delta {
-            self.scale = clamp::clamp_zoom(self.scale, scale_delta);
+            self.scale = clamp::clamp_zoom(self.scale, *scale_delta);
         }
         if let Some(translation) = translation {
-            self.translation = translation;
+            self.translation = *translation;
         }
     }
 
