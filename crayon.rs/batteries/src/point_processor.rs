@@ -6,19 +6,15 @@ const POINT_PROCESSOR_SIZE: usize = 4;
 
 pub struct PointProcessor {
     dots: VecDeque<StrokeDot2D>,
-    size: f32,
     step: f32,
-    sharpness: f32,
     filter: DistanceFilter,
 }
 
 impl PointProcessor {
-    pub fn new(size: f32, step: f32, sharpness: f32) -> Self {
+    pub fn new(step: f32) -> Self {
         Self {
             dots: VecDeque::with_capacity(POINT_PROCESSOR_SIZE),
-            size,
             step,
-            sharpness,
             filter: DistanceFilter::new(step),
         }
     }

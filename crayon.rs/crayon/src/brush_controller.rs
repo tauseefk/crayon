@@ -12,7 +12,7 @@ pub struct BrushController {
 
 impl BrushController {
     pub fn new(event_sender: EventSender) -> Self {
-        let point_processor = PointProcessor::new(100., 1., 1.);
+        let point_processor = PointProcessor::new(2.);
         BrushController {
             event_sender,
             is_dragging: false,
