@@ -37,7 +37,8 @@ impl From<StrokeDot2D> for Dot2D {
 }
 
 pub fn catmull_rom_to_bezier(dots: Dot2Dx4) -> Dot2Dx4 {
-    let tension = 1.;
+    // controls how closely curve follows control points
+    let tension = 1.0;
     let i6 = 1. / 6. / tension;
 
     let p0 = dots[0];
@@ -56,10 +57,10 @@ pub fn catmull_rom_to_bezier(dots: Dot2Dx4) -> Dot2Dx4 {
         },
         Dot2D {
             position: Point2 {
-                x: p3.position.x * i6 + p2.position.x - p1.position.x * i6,
-                y: p3.position.y * i6 + p2.position.y - p1.position.y * i6,
+                x: p3.position.x * -i6 + p2.position.x - p1.position.x * -i6,
+                y: p3.position.y * -i6 + p2.position.y - p1.position.y * -i6,
             },
-            radius: p3.radius * i6 + p2.radius - p1.radius * i6,
+            radius: p3.radius * -i6 + p2.radius - p1.radius * -i6,
         },
         p2,
     ]
