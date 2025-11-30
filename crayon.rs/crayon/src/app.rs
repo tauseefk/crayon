@@ -163,18 +163,29 @@ impl ApplicationHandler<CustomEvent> for App {
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => app_state.resize(size.width, size.height),
-            WindowEvent::RedrawRequested => match app_state.render() {
-                Ok(()) => {}
-                Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                    // re-configure to the same window size as the one just lost
-                    let size = app_state.get_window_size();
-                    app_state.resize(size.width, size.height);
+            WindowEvent::RedrawRequested => {
+                match app_state.render() {
+                    Ok(()) => {}
+                    Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                        // re-configure to the same window size as the one just lost
+                        let size = app_state.get_window_size();
+                        app_state.resize(size.width, size.height);
+                    }
+                    Err(e) => {
+                        log::error!("Unable to render to display {e}");
+                    }
+                };
+                // HACK: extra re-paint for UI updates
+                if let Some(window) = &self.window {
+                    window.request_redraw();
                 }
-                Err(e) => {
-                    log::error!("Unable to render to display {e}");
-                }
-            },
+            }
             event => {
+                // Pass events to UI first, return early if consumed
+                if app_state.handle_ui_event(&event) {
+                    return;
+                }
+
                 if let Some(brush_controller) = &mut self.brush_controller {
                     brush_controller.process_event(&event);
                 }

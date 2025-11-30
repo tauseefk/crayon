@@ -42,6 +42,8 @@ pub struct RendererState {
     pub paint_pipeline: wgpu::RenderPipeline,
     /// `true` if rendering to a, `false` if rendering to b
     is_rendering_to_a: bool,
+    // UI
+    ui: crayon_ui::CrayonUI,
 }
 
 impl RendererState {
@@ -89,6 +91,7 @@ impl RendererState {
                 },
                 memory_hints: MemoryHints::default(),
                 trace: wgpu::Trace::Off,
+                ..Default::default()
             })
             .await?;
 
@@ -366,6 +369,8 @@ impl RendererState {
         // --- PAINT PIPELINE END --- //
         // -------------------------- //
 
+        let ui = crayon_ui::CrayonUI::new(&device, surface_format, &window);
+
         Ok(Self {
             window,
             surface,
@@ -395,6 +400,7 @@ impl RendererState {
             paint_fragment_bind_group_b,
             paint_pipeline,
             is_rendering_to_a: true,
+            ui,
         })
     }
 
@@ -528,18 +534,56 @@ impl RendererState {
         }
     }
 
+    fn render_canvas(&self, encoder: &mut wgpu::CommandEncoder, surface_view: &wgpu::TextureView) {
+        let camera_bind_group = self.get_camera_bind_group();
+
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Display Pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: surface_view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(CLEAR_COLOR),
+                    store: wgpu::StoreOp::Store,
+                },
+                depth_slice: None,
+            })],
+            depth_stencil_attachment: None,
+            occlusion_query_set: None,
+            timestamp_writes: None,
+        });
+
+        render_pass.set_pipeline(&self.camera_pipeline);
+        render_pass.set_bind_group(0, &self.camera_vertex_bind_group, &[]);
+        render_pass.set_bind_group(1, camera_bind_group, &[]);
+        render_pass.set_vertex_buffer(0, self.camera_vertex_buffer.slice(..));
+        render_pass.set_index_buffer(
+            self.camera_index_buffer.slice(..),
+            wgpu::IndexFormat::Uint16,
+        );
+
+        render_pass.draw_indexed(0..self.index_count, 0, 0..1);
+    }
+
+    fn render_ui(&mut self, encoder: &mut wgpu::CommandEncoder, surface_view: &wgpu::TextureView) {
+        self.ui.render(
+            &self.context.device,
+            &self.context.queue,
+            encoder,
+            &self.window,
+            surface_view,
+        );
+    }
+
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         if !self.is_surface_configured {
             return Ok(());
         }
 
         let output = self.surface.get_current_texture()?;
-
         let surface_view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
-
-        let camera_bind_group = self.get_camera_bind_group();
 
         let mut encoder =
             self.context
@@ -548,39 +592,17 @@ impl RendererState {
                     label: Some("Display Encoder"),
                 });
 
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Display Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &surface_view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(CLEAR_COLOR),
-                        store: wgpu::StoreOp::Store,
-                    },
-                    depth_slice: None,
-                })],
-                depth_stencil_attachment: None,
-                occlusion_query_set: None,
-                timestamp_writes: None,
-            });
-
-            render_pass.set_pipeline(&self.camera_pipeline);
-            render_pass.set_bind_group(0, &self.camera_vertex_bind_group, &[]);
-            render_pass.set_bind_group(1, camera_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.camera_vertex_buffer.slice(..));
-            render_pass.set_index_buffer(
-                self.camera_index_buffer.slice(..),
-                wgpu::IndexFormat::Uint16,
-            );
-
-            render_pass.draw_indexed(0..self.index_count, 0, 0..1);
-        }
+        self.render_canvas(&mut encoder, &surface_view);
+        self.render_ui(&mut encoder, &surface_view);
 
         self.context.queue.submit(std::iter::once(encoder.finish()));
         self.window.pre_present_notify();
         output.present();
 
         Ok(())
+    }
+
+    pub fn handle_ui_event(&mut self, event: &winit::event::WindowEvent) -> bool {
+        self.ui.handle_event(&self.window, event)
     }
 }

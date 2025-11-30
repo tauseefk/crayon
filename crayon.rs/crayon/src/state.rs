@@ -57,6 +57,10 @@ impl State {
         self.renderer_state.paint_to_texture();
     }
 
+    pub fn handle_ui_event(&mut self, event: &winit::event::WindowEvent) -> bool {
+        self.renderer_state.handle_ui_event(event)
+    }
+
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         self.renderer_state.render()
     }

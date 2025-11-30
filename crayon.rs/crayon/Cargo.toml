@@ -16,6 +16,7 @@ anyhow = { workspace = true }
 batteries = { version = "0.1.0", path = "../batteries" }
 bytemuck = { workspace = true }
 cgmath = { workspace = true }
+crayon-ui = { version = "0.1.0", path = "../crayon-ui" }
 env_logger = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
