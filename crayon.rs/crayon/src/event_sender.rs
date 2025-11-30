@@ -20,27 +20,19 @@ impl EventSender {
         {
             let proxy_clone = event_loop_proxy.clone();
             std::thread::spawn(move || {
-                loop {
-                    match rx.recv() {
-                        Ok(event) => match event {
-                            ControllerEvent::BrushPoint { position } => {
-                                let _ =
-                                    proxy_clone.send_event(CustomEvent::BrushPoint { position });
-                            }
-                            ControllerEvent::CameraMove { position } => {
-                                let _ =
-                                    proxy_clone.send_event(CustomEvent::CameraMove { position });
-                            }
-                            ControllerEvent::CameraZoom { delta, .. } => {
-                                let _ = proxy_clone.send_event(CustomEvent::CameraZoom { delta });
-                            }
-                            ControllerEvent::ClearCanvas => {
-                                let _ = proxy_clone.send_event(CustomEvent::ClearCanvas);
-                            }
-                        },
-                        Err(_) => {
-                            // Channel closed, exit thread
-                            break;
+                while let Ok(event) = rx.recv() {
+                    match event {
+                        ControllerEvent::BrushPoint { dot } => {
+                            let _ = proxy_clone.send_event(CustomEvent::BrushPoint { dot });
+                        }
+                        ControllerEvent::CameraMove { position } => {
+                            let _ = proxy_clone.send_event(CustomEvent::CameraMove { position });
+                        }
+                        ControllerEvent::CameraZoom { delta, .. } => {
+                            let _ = proxy_clone.send_event(CustomEvent::CameraZoom { delta });
+                        }
+                        ControllerEvent::ClearCanvas => {
+                            let _ = proxy_clone.send_event(CustomEvent::ClearCanvas);
                         }
                     }
                 }
@@ -63,8 +55,8 @@ impl EventSender {
         #[cfg(target_arch = "wasm32")]
         {
             match event {
-                ControllerEvent::BrushPoint { position } => {
-                    let _ = self.proxy.send_event(CustomEvent::BrushPoint { position });
+                ControllerEvent::BrushPoint { dot } => {
+                    let _ = self.proxy.send_event(CustomEvent::BrushPoint { dot });
                 }
                 ControllerEvent::CameraMove { position } => {
                     let _ = self.proxy.send_event(CustomEvent::CameraMove { position });

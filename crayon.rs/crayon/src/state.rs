@@ -27,6 +27,7 @@ impl State {
     pub fn resize(&mut self, width: u32, height: u32) {
         if width > 0 && height > 0 {
             self.renderer_state.configure(width, height);
+            #[allow(clippy::cast_precision_loss)]
             self.camera.update_aspect_ratio(width as f32, height as f32);
             self.update_camera(None);
         }
@@ -42,15 +43,14 @@ impl State {
 
     pub fn update_camera(&mut self, transform: Option<CameraTransform>) {
         if let Some(transform) = transform {
-            self.camera.update(transform);
+            self.camera.update(&transform);
         }
 
         self.renderer_state.update_camera_buffer(&self.camera);
     }
 
-    pub fn update_paint(&mut self, position: Point2<f32>) {
-        self.renderer_state
-            .update_paint_buffer(position, &self.camera);
+    pub fn update_paint(&mut self, dot: &Dot2D) {
+        self.renderer_state.update_paint_buffer(dot, &self.camera);
     }
 
     pub fn paint_to_texture(&mut self) {

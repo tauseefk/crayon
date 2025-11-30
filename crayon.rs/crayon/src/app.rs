@@ -48,13 +48,10 @@ impl ApplicationHandler<CustomEvent> for App {
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            match (self.proxy.clone(), self.window.clone()) {
-                (Some(_), Some(window)) => {
-                    let state = futures::executor::block_on(State::new(window.clone())).unwrap();
+            if let (Some(_), Some(window)) = (self.proxy.clone(), self.window.clone()) {
+                let state = futures::executor::block_on(State::new(window.clone())).unwrap();
 
-                    self.state = Some(state);
-                }
-                (_, _) => {}
+                self.state = Some(state);
             }
         }
 
@@ -70,7 +67,9 @@ impl ApplicationHandler<CustomEvent> for App {
                         .expect("Unable to create canvas!!!");
                     assert!(
                         proxy
-                            .send_event(CustomEvent::CanvasCreated { state })
+                            .send_event(CustomEvent::CanvasCreated {
+                                state: Box::new(state)
+                            })
                             .is_ok()
                     );
                 });
@@ -97,6 +96,7 @@ impl ApplicationHandler<CustomEvent> for App {
                     if let Some(state) = &mut self.state {
                         let world_translation = screen_to_world_position(
                             position,
+                            #[allow(clippy::cast_precision_loss)]
                             (window_size.width as f32, window_size.height as f32),
                         );
 
@@ -119,18 +119,22 @@ impl ApplicationHandler<CustomEvent> for App {
                     }
                 }
             }
-            CustomEvent::BrushPoint { position } => {
+            CustomEvent::BrushPoint { dot } => {
                 if let Some(window) = &self.window {
                     let window_size = window.inner_size();
 
                     let brush_position = world_to_ndc(
-                        position,
+                        dot.position,
+                        #[allow(clippy::cast_precision_loss)]
                         (window_size.width as f32, window_size.height as f32),
                     );
                     let clamped_position = clamp::clamp_point(brush_position);
 
                     if let Some(state) = &mut self.state {
-                        state.update_paint(clamped_position);
+                        state.update_paint(&Dot2D {
+                            position: clamped_position,
+                            radius: dot.radius,
+                        });
                         state.paint_to_texture();
                         window.request_redraw();
                     }
@@ -139,7 +143,7 @@ impl ApplicationHandler<CustomEvent> for App {
             // this is useful for syncing UI with tools eg. UI needs to show a larger brush pointer when zoomed in
             CustomEvent::_UiUpdate => {}
             CustomEvent::CanvasCreated { state } => {
-                self.state = Some(state);
+                self.state = Some(*state);
             }
         }
     }
@@ -150,23 +154,24 @@ impl ApplicationHandler<CustomEvent> for App {
         _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
-        let app_state = match &mut self.state {
-            Some(app_state) => app_state,
-            None => return,
+        let Some(app_state) = &mut self.state else {
+            // if there's no app_state, the window might not have been initialized
+            // no need to start processing events yet
+            return;
         };
 
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => app_state.resize(size.width, size.height),
             WindowEvent::RedrawRequested => match app_state.render() {
-                Ok(_) => {}
+                Ok(()) => {}
                 Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
                     // re-configure to the same window size as the one just lost
                     let size = app_state.get_window_size();
                     app_state.resize(size.width, size.height);
                 }
                 Err(e) => {
-                    log::error!("Unable to render to display {}", e);
+                    log::error!("Unable to render to display {e}");
                 }
             },
             event => {
@@ -177,21 +182,18 @@ impl ApplicationHandler<CustomEvent> for App {
                     camera_controller.process_event(&event);
                 }
 
-                match event {
-                    WindowEvent::KeyboardInput {
-                        event:
-                            KeyEvent {
-                                physical_key: PhysicalKey::Code(code),
-                                state: key_state,
-                                ..
-                            },
-                        ..
-                    } => {
-                        if let (KeyCode::Escape, true) = (code, key_state.is_pressed()) {
-                            event_loop.exit()
-                        }
-                    }
-                    _ => {}
+                if let WindowEvent::KeyboardInput {
+                    event:
+                        KeyEvent {
+                            physical_key: PhysicalKey::Code(code),
+                            state: key_state,
+                            ..
+                        },
+                    ..
+                } = event
+                    && let (KeyCode::Escape, true) = (code, key_state.is_pressed())
+                {
+                    event_loop.exit();
                 }
             }
         }

@@ -12,7 +12,7 @@ pub struct CameraController {
     translation_offset: Point2<f32>,
     /// Cursor position during a drag operation
     cursor_position: Point2<f32>,
-    /// Initialized to cursor_position on mouse down
+    /// Initialized to `cursor_position` on mouse down
     cursor_start_position: Point2<f32>,
 }
 
@@ -46,7 +46,9 @@ impl CameraController {
 
                 let zoom_delta = match delta {
                     MouseScrollDelta::LineDelta(_, y) => zoom::get_zoom_delta(*y),
-                    MouseScrollDelta::PixelDelta(PhysicalPosition { y, .. }) => {
+                    MouseScrollDelta::PixelDelta(PhysicalPosition { y, .. }) =>
+                    {
+                        #[allow(clippy::cast_possible_truncation)]
                         zoom::get_zoom_delta(*y as f32)
                     }
                 };
@@ -55,7 +57,7 @@ impl CameraController {
                     return;
                 }
 
-                let _ = self.event_sender.send(ControllerEvent::CameraZoom {
+                self.event_sender.send(ControllerEvent::CameraZoom {
                     delta: zoom_delta,
                     _position: self.cursor_position,
                 });
@@ -75,7 +77,7 @@ impl CameraController {
                     let total_offset = self.translation_offset
                         + (self.cursor_position - self.cursor_start_position);
 
-                    let _ = self.event_sender.send(ControllerEvent::CameraMove {
+                    self.event_sender.send(ControllerEvent::CameraMove {
                         position: total_offset,
                     });
                 } else {
@@ -90,14 +92,14 @@ impl CameraController {
 
                 if *button == MouseButton::Left {
                     self.is_mouse_down = *state == ElementState::Pressed;
-                    if !self.is_mouse_down {
+                    if self.is_mouse_down {
+                        self.cursor_start_position = self.cursor_position;
+                    } else {
                         self.is_dragging = false;
 
                         // persist translation offset after panning operation is finished
                         self.translation_offset +=
                             self.cursor_position - self.cursor_start_position;
-                    } else {
-                        self.cursor_start_position = self.cursor_position;
                     }
                 }
             }

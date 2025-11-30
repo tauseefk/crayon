@@ -11,6 +11,7 @@ pub struct PointProcessor {
 }
 
 impl PointProcessor {
+    #[must_use]
     pub fn new(step: f32) -> Self {
         Self {
             dots: VecDeque::with_capacity(POINT_PROCESSOR_SIZE),
@@ -32,10 +33,7 @@ impl PointProcessor {
 
         let mut out_dots: Vec<Point2<f32>> = vec![];
         if new_point.is_last || diff_square_len > self.step.powi(2) {
-            let repeat: usize = match new_point.is_last {
-                true => 3,
-                false => 1,
-            };
+            let repeat: usize = if new_point.is_last { 3 } else { 1 };
 
             for _ in 0..repeat {
                 // pop first to prevent overflow
@@ -55,6 +53,7 @@ impl PointProcessor {
                 let len_start_end = sqr_len(diff_start_end).sqrt();
                 let dots_count = len_start_end * 2.;
 
+                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
                 let dots = eval_bezier(bezier, dots_count.floor() as usize);
 
                 let dots: Vec<Point2<f32>> = dots

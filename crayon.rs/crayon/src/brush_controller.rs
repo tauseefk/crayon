@@ -5,21 +5,21 @@ pub struct BrushController {
     is_mouse_down: bool,
     is_dragging: bool,
     is_disabled: bool,
-    cursor_size: f32,
-    cursor_position: cgmath::Point2<f32>,
+    brush_size: f32,
+    brush_position: cgmath::Point2<f32>,
     point_processor: PointProcessor,
 }
 
 impl BrushController {
     pub fn new(event_sender: EventSender) -> Self {
-        let point_processor = PointProcessor::new(2.);
+        let point_processor = PointProcessor::new(BRUSH_STEP_SIZE);
         BrushController {
             event_sender,
             is_dragging: false,
             is_mouse_down: false,
             is_disabled: false,
-            cursor_size: 2.0,
-            cursor_position: Point2::origin(),
+            brush_size: BRUSH_SIZE,
+            brush_position: Point2::origin(),
             point_processor,
         }
     }
@@ -48,20 +48,24 @@ impl BrushController {
                 }
 
                 let points = self.point_processor.process_point(StrokeDot2D {
+                    #[allow(clippy::cast_possible_truncation)]
                     position: cgmath::Point2::new(position.x as f32, position.y as f32),
-                    radius: self.cursor_size,
+                    radius: self.brush_size,
                     is_last: false,
                 });
 
-                for point in points.iter() {
-                    let _ = self
-                        .event_sender
-                        .send(ControllerEvent::BrushPoint { position: *point });
+                for point in &points {
+                    self.event_sender.send(ControllerEvent::BrushPoint {
+                        dot: Dot2D {
+                            position: *point,
+                            radius: self.brush_size,
+                        },
+                    });
                 }
 
                 // Update internal position to last point for usage in mouse up
                 if let Some(last_point) = points.last() {
-                    self.cursor_position = *last_point;
+                    self.brush_position = *last_point;
                 }
             }
             WindowEvent::MouseInput { state, button, .. } => {
@@ -72,15 +76,18 @@ impl BrushController {
                     if was_mouse_down && !self.is_mouse_down {
                         // Process final point with is_last=true for stroke end
                         let final_points = self.point_processor.process_point(StrokeDot2D {
-                            position: self.cursor_position,
-                            radius: self.cursor_size,
+                            position: self.brush_position,
+                            radius: self.brush_size,
                             is_last: true,
                         });
 
                         for point in final_points {
-                            let _ = self
-                                .event_sender
-                                .send(ControllerEvent::BrushPoint { position: point });
+                            self.event_sender.send(ControllerEvent::BrushPoint {
+                                dot: Dot2D {
+                                    position: point,
+                                    radius: self.brush_size,
+                                },
+                            });
                         }
 
                         self.point_processor.clear();

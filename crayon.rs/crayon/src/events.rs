@@ -5,7 +5,7 @@ use crate::prelude::*;
 #[derive(Debug, Clone)]
 pub enum ControllerEvent {
     BrushPoint {
-        position: cgmath::Point2<f32>,
+        dot: Dot2D,
     },
     CameraMove {
         position: cgmath::Point2<f32>,
@@ -20,12 +20,12 @@ pub enum ControllerEvent {
 
 pub enum CustomEvent {
     BrushPoint {
-        position: cgmath::Point2<f32>,
+        dot: Dot2D,
     },
     /// Only used on the WASM target
     #[allow(dead_code)]
     CanvasCreated {
-        state: State,
+        state: Box<State>,
     },
     CameraMove {
         position: cgmath::Point2<f32>,

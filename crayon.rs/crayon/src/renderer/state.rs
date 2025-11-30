@@ -46,6 +46,7 @@ pub struct RendererState {
 
 impl RendererState {
     /// take ownership of parameters as relevant ones are re-exported later
+    // TODO: break this into smaller parts
     pub async fn new(window: Arc<Window>, camera_uniform: CameraUniform) -> anyhow::Result<Self> {
         // mut for wasm32
         #[allow(unused_mut)]
@@ -86,7 +87,7 @@ impl RendererState {
                 } else {
                     wgpu::Limits::defaults()
                 },
-                memory_hints: Default::default(),
+                memory_hints: MemoryHints::default(),
                 trace: wgpu::Trace::Off,
             })
             .await?;
@@ -193,7 +194,7 @@ impl RendererState {
         let camera_vertex_uniform_buffer =
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Camera Vertex Uniform Buffer"),
-                contents: bytemuck::cast_slice(&[camera_uniform.clone()]),
+                contents: bytemuck::cast_slice(&[camera_uniform]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             });
 
@@ -244,12 +245,12 @@ impl RendererState {
                 &camera_vertex_bind_group_layout,
                 &camera_fragment_bind_group_layout,
             ],
-            camera_shader,
+            &camera_shader,
             config.format,
             &[DisplayVertex::desc()],
             false,
             "Camera Pipeline",
-        )?;
+        );
         // -------------------------- //
         // ------- VERTEX END ------- //
         // -------------------------- //
@@ -354,12 +355,12 @@ impl RendererState {
                 &paint_uniform_bind_group_layout,
                 &paint_fragment_bind_group_layout,
             ],
-            paint_shader,
+            &paint_shader,
             config.format,
             &[DisplayVertex::desc()],
             false,
             "Paint Pipeline",
-        )?;
+        );
 
         // -------------------------- //
         // --- PAINT PIPELINE END --- //
@@ -443,12 +444,12 @@ impl RendererState {
         self.context.queue.write_buffer(
             &self.camera_vertex_uniform_buffer,
             0,
-            bytemuck::cast_slice(&[self.camera_uniform.clone()]),
+            bytemuck::cast_slice(&[self.camera_uniform]),
         );
     }
 
-    pub fn update_paint_buffer(&mut self, position: Point2<f32>, camera: &Camera2D) {
-        self.paint_fragment_uniform.update_position(position);
+    pub fn update_paint_buffer(&mut self, dot: &Dot2D, camera: &Camera2D) {
+        self.paint_fragment_uniform.update_dot(dot);
         self.paint_fragment_uniform
             .update_inverse_view_projection(camera);
 

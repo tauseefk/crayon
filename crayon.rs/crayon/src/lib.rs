@@ -1,3 +1,5 @@
+#![warn(clippy::pedantic)]
+
 mod app;
 mod brush_controller;
 mod camera_controller;
@@ -19,6 +21,7 @@ mod prelude {
     pub use batteries::prelude::*;
     pub use cgmath::{EuclideanSpace, Point2};
 
+    pub use wgpu::MemoryHints;
     pub use wgpu::util::DeviceExt;
     pub use winit::{
         application::ApplicationHandler,

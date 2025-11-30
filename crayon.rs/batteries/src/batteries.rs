@@ -36,7 +36,8 @@ impl From<StrokeDot2D> for Dot2D {
     }
 }
 
-pub fn catmull_rom_to_bezier(dots: Dot2Dx4) -> Dot2Dx4 {
+#[must_use]
+pub const fn catmull_rom_to_bezier(dots: Dot2Dx4) -> Dot2Dx4 {
     // controls how closely curve follows control points
     let tension = 1.0;
     let i6 = 1. / 6. / tension;
@@ -66,6 +67,7 @@ pub fn catmull_rom_to_bezier(dots: Dot2Dx4) -> Dot2Dx4 {
     ]
 }
 
+#[must_use]
 pub fn eval_bezier(dots: Dot2Dx4, dots_count: usize) -> Vec<Dot2D> {
     let mut out_dots: Vec<Dot2D> = Vec::with_capacity(dots_count);
 
@@ -75,16 +77,17 @@ pub fn eval_bezier(dots: Dot2Dx4, dots_count: usize) -> Vec<Dot2D> {
     let d3 = dots[3];
 
     for i in 0..dots_count {
+        #[allow(clippy::cast_precision_loss)]
         let k = (i) as f32 / (dots_count + 1) as f32;
 
-        let d01 = lerp_dot_2d(d0, d1, k);
-        let d12 = lerp_dot_2d(d1, d2, k);
-        let d23 = lerp_dot_2d(d2, d3, k);
+        let d0_1 = lerp_dot_2d(d0, d1, k);
+        let d1_2 = lerp_dot_2d(d1, d2, k);
+        let d2_3 = lerp_dot_2d(d2, d3, k);
 
-        let d012 = lerp_dot_2d(d01, d12, k);
-        let d123 = lerp_dot_2d(d12, d23, k);
+        let d01_12 = lerp_dot_2d(d0_1, d1_2, k);
+        let d12_23 = lerp_dot_2d(d1_2, d2_3, k);
 
-        let bez = lerp_dot_2d(d012, d123, k);
+        let bez = lerp_dot_2d(d01_12, d12_23, k);
 
         out_dots.push(bez);
     }
@@ -100,6 +103,7 @@ pub struct DistanceFilter {
 }
 
 impl DistanceFilter {
+    #[must_use]
     pub fn new(distance: f32) -> Self {
         Self {
             distance,
@@ -108,21 +112,18 @@ impl DistanceFilter {
     }
 
     pub fn filter_by_distance(&mut self, next: Point2<f32>) -> Option<Point2<f32>> {
-        match self.current_point {
-            Some(current_point_val) => {
-                let diff = current_point_val.sub_element_wise(next);
-                let diff_sqr_len = sqr_len(diff);
-                if diff_sqr_len > self.distance * self.distance {
-                    self.current_point = Some(next);
-                    self.current_point
-                } else {
-                    None
-                }
-            }
-            None => {
+        if let Some(current_point_val) = self.current_point {
+            let diff = current_point_val.sub_element_wise(next);
+            let diff_sqr_len = sqr_len(diff);
+            if diff_sqr_len > self.distance * self.distance {
                 self.current_point = Some(next);
                 self.current_point
+            } else {
+                None
             }
+        } else {
+            self.current_point = Some(next);
+            self.current_point
         }
     }
 }
