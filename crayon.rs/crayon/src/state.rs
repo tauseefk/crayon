@@ -5,22 +5,27 @@ use crate::prelude::*;
 pub struct State {
     renderer_state: RendererState,
     camera: Camera2D,
+    editor_state: EditorState,
 }
 
 impl State {
-    pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
+    pub async fn new(window: Arc<Window>, event_sender: EventSender) -> anyhow::Result<Self> {
         let camera = Camera2D::new();
+        let editor_state = EditorState::new();
 
         let mut camera_uniform = CameraUniform::new();
         camera_uniform.update_view_projection(&camera);
 
-        let mut renderer_state = RendererState::new(window.clone(), camera_uniform).await?;
+        let initial_color = editor_state.get_brush_color_array();
+        let mut renderer_state =
+            RendererState::new(window.clone(), camera_uniform, initial_color, event_sender).await?;
 
         renderer_state.clear_render_texture();
 
         Ok(Self {
             renderer_state,
             camera,
+            editor_state,
         })
     }
 
@@ -55,6 +60,12 @@ impl State {
 
     pub fn paint_to_texture(&mut self) {
         self.renderer_state.paint_to_texture();
+    }
+
+    pub fn update_brush_color(&mut self, color: BrushColor) {
+        self.editor_state.update_brush_color(color);
+        let color_array = self.editor_state.get_brush_color_array();
+        self.renderer_state.update_brush_color(color_array);
     }
 
     pub fn handle_ui_event(&mut self, event: &winit::event::WindowEvent) -> bool {

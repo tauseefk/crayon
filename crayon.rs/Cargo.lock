@@ -520,7 +520,9 @@ dependencies = [
  "cgmath",
  "console_error_panic_hook",
  "console_log",
- "crayon-ui",
+ "egui",
+ "egui-wgpu",
+ "egui-winit",
  "env_logger",
  "futures",
  "log",
@@ -528,20 +530,6 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
- "wgpu",
- "winit",
-]
-
-[[package]]
-name = "crayon-ui"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "egui",
- "egui-wgpu",
- "egui-winit",
- "env_logger",
- "pollster",
  "wgpu",
  "winit",
 ]

@@ -4,6 +4,7 @@ mod app;
 mod brush_controller;
 mod camera_controller;
 mod constants;
+mod editor_state;
 mod event_sender;
 mod events;
 mod renderer;
@@ -23,6 +24,7 @@ mod prelude {
 
     pub use wgpu::MemoryHints;
     pub use wgpu::util::DeviceExt;
+    pub use winit::event_loop::EventLoopProxy;
     pub use winit::{
         application::ApplicationHandler,
         dpi::{LogicalSize, PhysicalPosition},
@@ -36,6 +38,7 @@ mod prelude {
     pub use crate::brush_controller::*;
     pub use crate::camera_controller::*;
     pub use crate::constants::*;
+    pub use crate::editor_state::*;
     pub use crate::event_sender::*;
     pub use crate::events::*;
     pub use crate::renderer::{brush::*, camera::*, pipeline::*, state::*};

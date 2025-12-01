@@ -1,13 +1,12 @@
-use winit::event_loop::EventLoopProxy;
-
 use crate::prelude::*;
 
 pub struct App {
-    proxy: Option<winit::event_loop::EventLoopProxy<CustomEvent>>,
+    proxy: Option<EventLoopProxy<CustomEvent>>,
     state: Option<State>,
     window: Option<Arc<winit::window::Window>>,
     camera_controller: Option<CameraController>,
     brush_controller: Option<BrushController>,
+    last_render: std::time::Instant,
 }
 
 impl App {
@@ -19,6 +18,7 @@ impl App {
             window: None,
             camera_controller: Some(CameraController::new(event_sender.clone())),
             brush_controller: Some(BrushController::new(event_sender)),
+            last_render: std::time::Instant::now(),
         }
     }
 }
@@ -48,8 +48,10 @@ impl ApplicationHandler<CustomEvent> for App {
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            if let (Some(_), Some(window)) = (self.proxy.clone(), self.window.clone()) {
-                let state = futures::executor::block_on(State::new(window.clone())).unwrap();
+            if let (Some(proxy), Some(window)) = (self.proxy.clone(), self.window.clone()) {
+                let event_sender = EventSender::new(proxy);
+                let state =
+                    futures::executor::block_on(State::new(window.clone(), event_sender)).unwrap();
 
                 self.state = Some(state);
             }
@@ -62,7 +64,8 @@ impl ApplicationHandler<CustomEvent> for App {
             // proxy to send the results to the event loop
             if let Some(proxy) = self.proxy.take() {
                 wasm_bindgen_futures::spawn_local(async move {
-                    let state = State::new(window_for_wasm)
+                    let event_sender = EventSender::new(proxy.clone());
+                    let state = State::new(window_for_wasm, event_sender)
                         .await
                         .expect("Unable to create canvas!!!");
                     assert!(
@@ -140,10 +143,21 @@ impl ApplicationHandler<CustomEvent> for App {
                     }
                 }
             }
+            CustomEvent::UpdateBrushColor(color) => {
+                if let Some(state) = &mut self.state {
+                    state.update_brush_color(color);
+                    if let Some(window) = &self.window {
+                        window.request_redraw();
+                    }
+                }
+            }
             // this is useful for syncing UI with tools eg. UI needs to show a larger brush pointer when zoomed in
             CustomEvent::_UiUpdate => {}
             CustomEvent::CanvasCreated { state } => {
                 self.state = Some(*state);
+                if let Some(window) = &self.window {
+                    window.request_redraw();
+                }
             }
         }
     }
@@ -175,9 +189,14 @@ impl ApplicationHandler<CustomEvent> for App {
                         log::error!("Unable to render to display {e}");
                     }
                 };
-                // HACK: extra re-paint for UI updates
-                if let Some(window) = &self.window {
-                    window.request_redraw();
+
+                // Cap framerate
+                let now = std::time::Instant::now();
+                if now.duration_since(self.last_render).as_millis() >= 5 {
+                    self.last_render = now;
+                    if let Some(window) = &self.window {
+                        window.request_redraw();
+                    }
                 }
             }
             event => {

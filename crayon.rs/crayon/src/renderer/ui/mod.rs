@@ -1,24 +1,30 @@
 mod egui_renderer;
-mod ui_state;
 
+use crate::prelude::*;
 use egui_renderer::UiRenderer;
 use egui_wgpu::ScreenDescriptor;
 use egui_wgpu::wgpu::{CommandEncoder, Device, Queue, TextureFormat, TextureView};
-use ui_state::UiState;
 use winit::event::WindowEvent;
 use winit::window::Window;
 
 pub struct CrayonUI {
     renderer: UiRenderer,
-    ui_state: UiState,
+    event_sender: EventSender,
 }
 
 impl CrayonUI {
-    pub fn new(device: &Device, surface_format: TextureFormat, window: &Window) -> Self {
+    pub fn new(
+        device: &Device,
+        surface_format: TextureFormat,
+        window: &Window,
+        event_sender: EventSender,
+    ) -> Self {
         let renderer = UiRenderer::new(device, surface_format, None, 1, window);
-        let ui_state = UiState::new();
 
-        Self { renderer, ui_state }
+        Self {
+            renderer,
+            event_sender,
+        }
     }
 
     pub fn handle_event(&mut self, window: &Window, event: &WindowEvent) -> bool {
@@ -33,6 +39,7 @@ impl CrayonUI {
         encoder: &mut CommandEncoder,
         window: &Window,
         surface_view: &TextureView,
+        current_brush_color: BrushColor,
     ) {
         let window_size = window.inner_size();
         let screen_descriptor = ScreenDescriptor {
@@ -53,14 +60,30 @@ impl CrayonUI {
                     .shadow(egui::epaint::Shadow::NONE),
             )
             .show(self.renderer.context(), |ui| {
-                let button = egui::Button::new(
-                    egui::RichText::new("Toggle Color").color(self.ui_state.text_color),
-                )
-                .fill(self.ui_state.bg_color)
-                .stroke(egui::Stroke::NONE)
-                .min_size(egui::vec2(120.0, 40.0));
+                let egui_color = current_brush_color.to_egui_color32();
+
+                // Calculate text color for readability
+                let text_color = if egui_color == COLOR_A.to_egui_color32() {
+                    egui::Color32::from_rgb(0xED, 0xED, 0xED)
+                } else {
+                    egui::Color32::from_rgb(0x2F, 0x2F, 0x2F)
+                };
+
+                let button =
+                    egui::Button::new(egui::RichText::new("Toggle Color").color(text_color))
+                        .fill(egui_color)
+                        .stroke(egui::Stroke::NONE)
+                        .min_size(egui::vec2(120.0, 40.0));
+
                 if ui.add(button).clicked() {
-                    self.ui_state.toggle_color();
+                    // Toggle between COLOR_A and COLOR_B
+                    let next_color = if current_brush_color == COLOR_A {
+                        COLOR_B
+                    } else {
+                        COLOR_A
+                    };
+                    self.event_sender
+                        .send(ControllerEvent::UpdateBrushColor(next_color));
                 }
             });
 

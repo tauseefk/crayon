@@ -34,6 +34,9 @@ impl EventSender {
                         ControllerEvent::ClearCanvas => {
                             let _ = proxy_clone.send_event(CustomEvent::ClearCanvas);
                         }
+                        ControllerEvent::UpdateBrushColor(color) => {
+                            let _ = proxy_clone.send_event(CustomEvent::UpdateBrushColor(color));
+                        }
                     }
                 }
             });
@@ -66,6 +69,9 @@ impl EventSender {
                 }
                 ControllerEvent::ClearCanvas => {
                     let _ = self.proxy.send_event(CustomEvent::ClearCanvas);
+                }
+                ControllerEvent::UpdateBrushColor(color) => {
+                    let _ = self.proxy.send_event(CustomEvent::UpdateBrushColor(color));
                 }
             }
         }

@@ -43,13 +43,18 @@ pub struct RendererState {
     /// `true` if rendering to a, `false` if rendering to b
     is_rendering_to_a: bool,
     // UI
-    ui: crayon_ui::CrayonUI,
+    ui: crate::renderer::ui::CrayonUI,
 }
 
 impl RendererState {
     /// take ownership of parameters as relevant ones are re-exported later
     // TODO: break this into smaller parts
-    pub async fn new(window: Arc<Window>, camera_uniform: CameraUniform) -> anyhow::Result<Self> {
+    pub async fn new(
+        window: Arc<Window>,
+        camera_uniform: CameraUniform,
+        initial_brush_color: [f32; 4],
+        event_sender: EventSender,
+    ) -> anyhow::Result<Self> {
         // mut for wasm32
         #[allow(unused_mut)]
         let mut size = window.inner_size();
@@ -262,7 +267,7 @@ impl RendererState {
         // ----- PAINT PIPELINE ----- //
         // -------------------------- //
 
-        let paint_uniform = BrushFragmentUniform::new();
+        let paint_uniform = BrushFragmentUniform::new_with_data(initial_brush_color);
 
         let paint_uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Paint Uniform Buffer"),
@@ -369,7 +374,7 @@ impl RendererState {
         // --- PAINT PIPELINE END --- //
         // -------------------------- //
 
-        let ui = crayon_ui::CrayonUI::new(&device, surface_format, &window);
+        let ui = crate::renderer::ui::CrayonUI::new(&device, surface_format, &window, event_sender);
 
         Ok(Self {
             window,
@@ -458,6 +463,16 @@ impl RendererState {
         self.paint_fragment_uniform.update_dot(dot);
         self.paint_fragment_uniform
             .update_inverse_view_projection(camera);
+
+        self.context.queue.write_buffer(
+            &self.paint_fragment_uniform_buffer,
+            0,
+            bytemuck::cast_slice(&[self.paint_fragment_uniform]),
+        );
+    }
+
+    pub fn update_brush_color(&mut self, color: [f32; 4]) {
+        self.paint_fragment_uniform.set_color(color);
 
         self.context.queue.write_buffer(
             &self.paint_fragment_uniform_buffer,
@@ -566,12 +581,15 @@ impl RendererState {
     }
 
     fn render_ui(&mut self, encoder: &mut wgpu::CommandEncoder, surface_view: &wgpu::TextureView) {
+        let current_color = self.paint_fragment_uniform.get_color_as_brush_color();
+
         self.ui.render(
             &self.context.device,
             &self.context.queue,
             encoder,
             &self.window,
             surface_view,
+            current_color,
         );
     }
 

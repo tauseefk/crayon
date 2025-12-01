@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 
-members = ["crayon", "batteries", "crayon-ui"]
+members = ["crayon", "batteries"]
 
 [workspace.dependencies]
 anyhow = "1.0.99"
