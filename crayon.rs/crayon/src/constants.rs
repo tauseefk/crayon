@@ -16,13 +16,6 @@ pub const CLEAR_COLOR: wgpu::Color = if cfg!(debug_assertions) {
     }
 };
 
-pub const DEFAULT_BRUSH_COLOR: wgpu::Color = wgpu::Color {
-    r: 128.0 / 255.0,
-    g: 85.0 / 255.0,
-    b: 1.0,
-    a: 1.0,
-};
-
 pub const INDICES: &[u16] = &[
     0, 1, 2, // bottom right triangle
     0, 2, 3, // left top triangle

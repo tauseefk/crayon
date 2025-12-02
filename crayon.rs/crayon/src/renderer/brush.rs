@@ -16,21 +16,23 @@ pub struct BrushFragmentUniform {
 }
 
 impl BrushFragmentUniform {
-    pub fn new() -> Self {
+    pub fn new_with_data(color: [f32; 4]) -> Self {
         use cgmath::SquareMatrix;
-        #[allow(clippy::cast_possible_truncation)]
         Self {
-            color: [
-                DEFAULT_BRUSH_COLOR.r as f32,
-                DEFAULT_BRUSH_COLOR.g as f32,
-                DEFAULT_BRUSH_COLOR.b as f32,
-                DEFAULT_BRUSH_COLOR.a as f32,
-            ],
+            color,
             sharpness: BRUSH_SHARPNESS,
             size: BRUSH_SIZE,
             position: [DEFAULT_BRUSH_POSITION, DEFAULT_BRUSH_POSITION],
             inverse_view_projection: cgmath::Matrix4::identity().into(),
         }
+    }
+
+    pub fn set_color(&mut self, color: [f32; 4]) {
+        self.color = color;
+    }
+
+    pub fn get_color_as_brush_color(&self) -> BrushColor {
+        BrushColor::new(self.color[0], self.color[1], self.color[2], self.color[3])
     }
 
     pub fn update_dot(&mut self, dot: &Dot2D) {

@@ -16,6 +16,7 @@ pub enum ControllerEvent {
         _position: cgmath::Point2<f32>,
     },
     ClearCanvas,
+    UpdateBrushColor(BrushColor),
 }
 
 pub enum CustomEvent {
@@ -34,6 +35,7 @@ pub enum CustomEvent {
         delta: f32,
     },
     ClearCanvas,
+    UpdateBrushColor(BrushColor),
     /// Useful when triggering UI updates based on rendering events
     _UiUpdate,
 }
