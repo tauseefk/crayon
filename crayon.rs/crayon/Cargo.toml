@@ -18,7 +18,7 @@ bytemuck = { workspace = true }
 cgmath = { workspace = true }
 egui = "0.33.2"
 egui-wgpu = { version = "0.33.2", features = ["winit"] }
-egui-winit = "0.33.2"
+egui-winit = { version = "0.33.2", default-features = false }
 env_logger = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
@@ -33,3 +33,4 @@ wgpu = { workspace = true, features = ["webgl"] }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 web-sys = { workspace = true, features = ["Document", "Window", "Element"] }
+web-time = "1.1"

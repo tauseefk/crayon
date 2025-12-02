@@ -16,18 +16,27 @@ impl BrushColor {
         [self.r, self.g, self.b, self.a]
     }
 
-    pub fn to_egui_color32(&self) -> egui::Color32 {
-        egui::Color32::from_rgba_premultiplied(
+    pub fn to_srgb(&self) -> [u8; 3] {
+        [
             (self.r * 255.0) as u8,
             (self.g * 255.0) as u8,
             (self.b * 255.0) as u8,
-            (self.a * 255.0) as u8,
-        )
+        ]
+    }
+}
+
+impl From<[u8; 3]> for BrushColor {
+    fn from(value: [u8; 3]) -> Self {
+        Self {
+            r: (value[0] as f32) / 255.,
+            g: (value[1] as f32) / 255.,
+            b: (value[2] as f32) / 255.,
+            a: 1.,
+        }
     }
 }
 
 pub const COLOR_A: BrushColor = BrushColor::new(128.0 / 255.0, 85.0 / 255.0, 1.0, 1.0);
-pub const COLOR_B: BrushColor = BrushColor::new(244.0 / 255.0, 233.0 / 255.0, 205.0 / 255.0, 1.0);
 
 pub struct EditorState {
     pub brush_color: BrushColor,

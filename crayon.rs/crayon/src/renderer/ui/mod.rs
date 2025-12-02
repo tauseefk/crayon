@@ -60,30 +60,12 @@ impl CrayonUI {
                     .shadow(egui::epaint::Shadow::NONE),
             )
             .show(self.renderer.context(), |ui| {
-                let egui_color = current_brush_color.to_egui_color32();
+                let mut color = current_brush_color.to_srgb();
 
-                // Calculate text color for readability
-                let text_color = if egui_color == COLOR_A.to_egui_color32() {
-                    egui::Color32::from_rgb(0xED, 0xED, 0xED)
-                } else {
-                    egui::Color32::from_rgb(0x2F, 0x2F, 0x2F)
-                };
-
-                let button =
-                    egui::Button::new(egui::RichText::new("Toggle Color").color(text_color))
-                        .fill(egui_color)
-                        .stroke(egui::Stroke::NONE)
-                        .min_size(egui::vec2(120.0, 40.0));
-
-                if ui.add(button).clicked() {
-                    // Toggle between COLOR_A and COLOR_B
-                    let next_color = if current_brush_color == COLOR_A {
-                        COLOR_B
-                    } else {
-                        COLOR_A
-                    };
+                if ui.color_edit_button_srgb(&mut color).changed() {
+                    let new_color = BrushColor::from(color);
                     self.event_sender
-                        .send(ControllerEvent::UpdateBrushColor(next_color));
+                        .send(ControllerEvent::UpdateBrushColor(new_color));
                 }
             });
 

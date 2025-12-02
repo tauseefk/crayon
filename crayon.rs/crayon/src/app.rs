@@ -1,12 +1,17 @@
 use crate::prelude::*;
 
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Instant;
+#[cfg(target_arch = "wasm32")]
+use web_time::Instant;
+
 pub struct App {
     proxy: Option<EventLoopProxy<CustomEvent>>,
     state: Option<State>,
     window: Option<Arc<winit::window::Window>>,
     camera_controller: Option<CameraController>,
     brush_controller: Option<BrushController>,
-    last_render: std::time::Instant,
+    last_render: Instant,
 }
 
 impl App {
@@ -18,7 +23,7 @@ impl App {
             window: None,
             camera_controller: Some(CameraController::new(event_sender.clone())),
             brush_controller: Some(BrushController::new(event_sender)),
-            last_render: std::time::Instant::now(),
+            last_render: Instant::now(),
         }
     }
 }
@@ -191,7 +196,7 @@ impl ApplicationHandler<CustomEvent> for App {
                 };
 
                 // Cap framerate
-                let now = std::time::Instant::now();
+                let now = Instant::now();
                 if now.duration_since(self.last_render).as_millis() >= 5 {
                     self.last_render = now;
                     if let Some(window) = &self.window {
