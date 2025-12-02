@@ -2,20 +2,24 @@ use crate::prelude::*;
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
+use std::{
+    any::{Any, TypeId},
+    collections::HashMap,
+    sync::RwLock,
+};
 #[cfg(target_arch = "wasm32")]
 use web_time::Instant;
+
+pub struct WindowResource(pub Arc<winit::window::Window>);
+impl Resource for WindowResource {}
 
 pub struct App {
     brush_controller: BrushController,
     camera_controller: CameraController,
-    last_render: Instant,
+    resources: HashMap<TypeId, Arc<RwLock<dyn Any + Send + Sync>>>,
+    startup_systems: Vec<Box<dyn System>>,
+    update_systems: Vec<Box<dyn System>>,
     proxy: EventLoopProxy<CustomEvent>,
-    /// Without `window` being available at initalization
-    /// it's not possible to get a handle to the GPU device
-    /// `State` -> `RendererState` rely on the device being available
-    state: Option<State>,
-    /// On `web`, `window` is not available at initalization
-    window: Option<Arc<winit::window::Window>>,
 }
 
 impl App {
@@ -24,87 +28,102 @@ impl App {
         Self {
             brush_controller: BrushController::new(event_sender.clone()),
             camera_controller: CameraController::new(event_sender),
-            last_render: Instant::now(),
+            resources: HashMap::new(),
+            startup_systems: vec![],
+            update_systems: vec![],
             proxy: event_loop_proxy,
-            state: None,
-            window: None,
         }
+    }
+
+    fn run_startup_systems(&self) {
+        for system in &self.startup_systems {
+            system.run(self);
+        }
+    }
+
+    fn run_update_systems(&self) {
+        for system in &self.update_systems {
+            system.run(self);
+        }
+    }
+}
+
+impl ResourceContext for App {
+    fn read<T: Resource>(&self) -> Option<Res<'_, T>> {
+        let guard = self.resources.get(&TypeId::of::<T>())?.read().ok()?;
+
+        Some(Res::new(guard))
+    }
+
+    fn write<T: Resource>(&self) -> Option<ResMut<'_, T>> {
+        let guard = self.resources.get(&TypeId::of::<T>())?.write().ok()?;
+
+        Some(ResMut::new(guard))
+    }
+
+    fn insert_resource<T: Resource>(&mut self, resource: T) -> &mut Self {
+        self.resources
+            .insert(TypeId::of::<T>(), Arc::new(RwLock::new(resource)));
+
+        self
+    }
+}
+
+impl SystemRegistry for App {
+    fn add_system(&mut self, schedule: Schedule, system: impl System + 'static) -> &mut Self {
+        match schedule {
+            Schedule::Startup => self.startup_systems.push(Box::new(system)),
+            Schedule::Update => self.update_systems.push(Box::new(system)),
+        }
+
+        self
     }
 }
 
 impl ApplicationHandler<CustomEvent> for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        #[allow(unused_mut)]
-        let mut window_attributes = Window::default_attributes()
-            .with_title("Crayon")
-            .with_inner_size(LogicalSize::new(WINDOW_SIZE.0, WINDOW_SIZE.1));
+        if self.read::<WindowResource>().is_none() {
+            // updated by wasm window attributes
+            #[allow(unused_mut)]
+            let mut window_attributes = Window::default_attributes()
+                .with_title("Crayon")
+                .with_inner_size(LogicalSize::new(WINDOW_SIZE.0, WINDOW_SIZE.1));
 
-        #[cfg(target_arch = "wasm32")]
-        {
-            use wasm_bindgen::JsCast;
-            use winit::platform::web::WindowAttributesExtWebSys;
+            #[cfg(target_arch = "wasm32")]
+            {
+                use wasm_bindgen::JsCast;
+                use winit::platform::web::WindowAttributesExtWebSys;
 
-            const CANVAS_ID: &str = "canvas";
+                const CANVAS_ID: &str = "canvas";
 
-            let window = wgpu::web_sys::window().unwrap_throw();
-            let document = window.document().unwrap_throw();
-            let canvas = document.get_element_by_id(CANVAS_ID).unwrap_throw();
-            let html_canvas_element = canvas.unchecked_into();
-            window_attributes = window_attributes.with_canvas(Some(html_canvas_element));
-        }
-        let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
-        self.window = Some(window.clone());
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            if let (proxy, Some(window)) = (self.proxy.clone(), self.window.clone()) {
-                let event_sender = EventSender::new(proxy);
-                let state =
-                    futures::executor::block_on(State::new(window.clone(), event_sender)).unwrap();
-
-                self.state = Some(state);
+                let window = wgpu::web_sys::window().unwrap_throw();
+                let document = window.document().unwrap_throw();
+                let canvas = document.get_element_by_id(CANVAS_ID).unwrap_throw();
+                let html_canvas_element = canvas.unchecked_into();
+                window_attributes = window_attributes.with_canvas(Some(html_canvas_element));
             }
-        }
+            let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
 
-        #[cfg(target_arch = "wasm32")]
-        {
-            let window_for_wasm = window.clone();
-            let proxy = self.proxy.clone();
-            // Run the future asynchronously and use the
-            // proxy to send the results to the event loop
-            wasm_bindgen_futures::spawn_local(async move {
-                let event_sender = EventSender::new(proxy.clone());
-                let state = State::new(window_for_wasm, event_sender)
-                    .await
-                    .expect("Unable to create canvas!!!");
-                assert!(
-                    proxy
-                        .send_event(CustomEvent::CanvasCreated {
-                            state: Box::new(state)
-                        })
-                        .is_ok()
-                );
-            });
+            self.insert_resource(WindowResource(window))
+                .insert_resource(State::new());
         }
-
-        window.request_redraw();
     }
 
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: CustomEvent) {
         match event {
             CustomEvent::ClearCanvas => {
-                if let Some(state) = &mut self.state {
+                if let Some(state) = &mut self.write::<State>() {
                     state.clear_canvas();
-                    if let Some(window) = &self.window {
-                        window.request_redraw();
+                    if let Some(window_res) = &self.read::<WindowResource>() {
+                        window_res.0.request_redraw();
                     }
                 }
             }
             CustomEvent::CameraMove { position } => {
-                if let Some(window) = &self.window {
-                    let window_size = window.inner_size();
+                if let Some(window_res) = &self.read::<WindowResource>() {
+                    let window_size = window_res.0.inner_size();
 
-                    if let Some(state) = &mut self.state {
+                    if let Some(state) = &mut self.write::<State>() {
                         let world_translation = screen_to_world_position(
                             position,
                             #[allow(clippy::cast_precision_loss)]
@@ -115,24 +134,24 @@ impl ApplicationHandler<CustomEvent> for App {
                             translation: Some(clamp::clamp_point(world_translation)),
                             ..Default::default()
                         }));
-                        window.request_redraw();
+                        window_res.0.request_redraw();
                     }
                 }
             }
             CustomEvent::CameraZoom { delta } => {
-                if let Some(state) = &mut self.state {
+                if let Some(state) = &mut self.write::<State>() {
                     state.update_camera(Some(CameraTransform {
                         scale_delta: Some(delta),
                         ..Default::default()
                     }));
-                    if let Some(window) = &self.window {
-                        window.request_redraw();
+                    if let Some(window) = &self.read::<WindowResource>() {
+                        window.0.request_redraw();
                     }
                 }
             }
             CustomEvent::BrushPoint { dot } => {
-                if let Some(window) = &self.window {
-                    let window_size = window.inner_size();
+                if let Some(window) = &self.read::<WindowResource>() {
+                    let window_size = window.0.inner_size();
 
                     let brush_position = world_to_ndc(
                         dot.position,
@@ -141,30 +160,30 @@ impl ApplicationHandler<CustomEvent> for App {
                     );
                     let clamped_position = clamp::clamp_point(brush_position);
 
-                    if let Some(state) = &mut self.state {
+                    if let Some(state) = &mut self.write::<State>() {
                         state.update_paint(&Dot2D {
                             position: clamped_position,
                             radius: dot.radius,
                         });
                         state.paint_to_texture();
-                        window.request_redraw();
+                        window.0.request_redraw();
                     }
                 }
             }
             CustomEvent::UpdateBrushColor(color) => {
-                if let Some(state) = &mut self.state {
+                if let Some(state) = &mut self.write::<State>() {
                     state.update_brush_color(color);
-                    if let Some(window) = &self.window {
-                        window.request_redraw();
+                    if let Some(window) = &self.read::<WindowResource>() {
+                        window.0.request_redraw();
                     }
                 }
             }
             // this is useful for syncing UI with tools eg. UI needs to show a larger brush pointer when zoomed in
             CustomEvent::_UiUpdate => {}
             CustomEvent::CanvasCreated { state } => {
-                self.state = Some(*state);
-                if let Some(window) = &self.window {
-                    window.request_redraw();
+                self.insert_resource(*state);
+                if let Some(window) = &self.read::<WindowResource>() {
+                    window.0.request_redraw();
                 }
             }
         }
@@ -176,7 +195,7 @@ impl ApplicationHandler<CustomEvent> for App {
         _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
-        let Some(app_state) = &mut self.state else {
+        let Some(app_state) = &mut self.write::<State>() else {
             // if there's no app_state, the window might not have been initialized
             // no need to start processing events yet
             return;
@@ -190,8 +209,10 @@ impl ApplicationHandler<CustomEvent> for App {
                     Ok(()) => {}
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
                         // re-configure to the same window size as the one just lost
-                        let size = app_state.get_window_size();
-                        app_state.resize(size.width, size.height);
+                        if let Some(window_res) = self.read::<WindowResource>() {
+                            let size = window_res.0.inner_size();
+                            app_state.resize(size.width, size.height);
+                        }
                     }
                     Err(e) => {
                         log::error!("Unable to render to display {e}");
@@ -200,10 +221,10 @@ impl ApplicationHandler<CustomEvent> for App {
 
                 // Cap framerate
                 let now = Instant::now();
-                if now.duration_since(self.last_render).as_millis() >= 5 {
-                    self.last_render = now;
-                    if let Some(window) = &self.window {
-                        window.request_redraw();
+                if now.duration_since(app_state.last_render).as_millis() >= 5 {
+                    app_state.last_render = now;
+                    if let Some(window_res) = self.read::<WindowResource>() {
+                        window_res.0.request_redraw();
                     }
                 }
             }
@@ -213,8 +234,9 @@ impl ApplicationHandler<CustomEvent> for App {
                     return;
                 }
 
-                self.brush_controller.process_event(&event);
-                self.camera_controller.process_event(&event);
+                // TODO: decouple brush and camera controllers
+                // self.brush_controller.process_event(&event);
+                // self.camera_controller.process_event(&event);
 
                 if let WindowEvent::KeyboardInput {
                     event:

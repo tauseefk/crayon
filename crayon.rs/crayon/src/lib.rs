@@ -8,7 +8,9 @@ mod editor_state;
 mod event_sender;
 mod events;
 mod renderer;
+mod resource;
 mod state;
+mod system;
 mod texture;
 mod utils;
 
@@ -42,7 +44,9 @@ mod prelude {
     pub use crate::event_sender::*;
     pub use crate::events::*;
     pub use crate::renderer::{brush::*, camera::*, pipeline::*, state::*};
+    pub use crate::resource::*;
     pub use crate::state::*;
+    pub use crate::system::*;
     pub use crate::texture::*;
     pub use crate::utils::*;
 }
