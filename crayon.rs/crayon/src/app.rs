@@ -69,23 +69,22 @@ impl ApplicationHandler<CustomEvent> for App {
         #[cfg(target_arch = "wasm32")]
         {
             let window_for_wasm = window.clone();
+            let proxy = self.proxy.clone();
             // Run the future asynchronously and use the
             // proxy to send the results to the event loop
-            if let Some(proxy) = self.proxy.take() {
-                wasm_bindgen_futures::spawn_local(async move {
-                    let event_sender = EventSender::new(proxy.clone());
-                    let state = State::new(window_for_wasm, event_sender)
-                        .await
-                        .expect("Unable to create canvas!!!");
-                    assert!(
-                        proxy
-                            .send_event(CustomEvent::CanvasCreated {
-                                state: Box::new(state)
-                            })
-                            .is_ok()
-                    );
-                });
-            }
+            wasm_bindgen_futures::spawn_local(async move {
+                let event_sender = EventSender::new(proxy.clone());
+                let state = State::new(window_for_wasm, event_sender)
+                    .await
+                    .expect("Unable to create canvas!!!");
+                assert!(
+                    proxy
+                        .send_event(CustomEvent::CanvasCreated {
+                            state: Box::new(state)
+                        })
+                        .is_ok()
+                );
+            });
         }
 
         window.request_redraw();
