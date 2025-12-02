@@ -6,11 +6,11 @@ use std::time::Instant;
 use web_time::Instant;
 
 pub struct App {
-    proxy: Option<EventLoopProxy<CustomEvent>>,
+    proxy: EventLoopProxy<CustomEvent>,
     state: Option<State>,
     window: Option<Arc<winit::window::Window>>,
-    camera_controller: Option<CameraController>,
-    brush_controller: Option<BrushController>,
+    camera_controller: CameraController,
+    brush_controller: BrushController,
     last_render: Instant,
 }
 
@@ -18,12 +18,12 @@ impl App {
     pub fn new(event_loop_proxy: EventLoopProxy<CustomEvent>) -> Self {
         let event_sender = EventSender::new(event_loop_proxy.clone());
         Self {
-            proxy: Some(event_loop_proxy),
+            brush_controller: BrushController::new(event_sender.clone()),
+            camera_controller: CameraController::new(event_sender),
+            last_render: Instant::now(),
+            proxy: event_loop_proxy,
             state: None,
             window: None,
-            camera_controller: Some(CameraController::new(event_sender.clone())),
-            brush_controller: Some(BrushController::new(event_sender)),
-            last_render: Instant::now(),
         }
     }
 }
@@ -53,7 +53,7 @@ impl ApplicationHandler<CustomEvent> for App {
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            if let (Some(proxy), Some(window)) = (self.proxy.clone(), self.window.clone()) {
+            if let (proxy, Some(window)) = (self.proxy.clone(), self.window.clone()) {
                 let event_sender = EventSender::new(proxy);
                 let state =
                     futures::executor::block_on(State::new(window.clone(), event_sender)).unwrap();
@@ -210,12 +210,8 @@ impl ApplicationHandler<CustomEvent> for App {
                     return;
                 }
 
-                if let Some(brush_controller) = &mut self.brush_controller {
-                    brush_controller.process_event(&event);
-                }
-                if let Some(camera_controller) = &mut self.camera_controller {
-                    camera_controller.process_event(&event);
-                }
+                self.brush_controller.process_event(&event);
+                self.camera_controller.process_event(&event);
 
                 if let WindowEvent::KeyboardInput {
                     event:
