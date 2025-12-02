@@ -75,7 +75,7 @@ impl CrayonUI {
             encoder,
             window,
             surface_view,
-            screen_descriptor,
+            &screen_descriptor,
         );
     }
 }

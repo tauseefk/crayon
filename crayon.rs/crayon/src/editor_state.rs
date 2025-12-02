@@ -12,11 +12,11 @@ impl BrushColor {
         Self { r, g, b, a }
     }
 
-    pub fn to_array(&self) -> [f32; 4] {
+    pub fn to_rgba_array(self) -> [f32; 4] {
         [self.r, self.g, self.b, self.a]
     }
 
-    pub fn to_srgb(&self) -> [u8; 3] {
+    pub fn to_srgb(self) -> [u8; 3] {
         [
             (self.r * 255.0) as u8,
             (self.g * 255.0) as u8,
@@ -28,9 +28,9 @@ impl BrushColor {
 impl From<[u8; 3]> for BrushColor {
     fn from(value: [u8; 3]) -> Self {
         Self {
-            r: (value[0] as f32) / 255.,
-            g: (value[1] as f32) / 255.,
-            b: (value[2] as f32) / 255.,
+            r: f32::from(value[0]) / 255.,
+            g: f32::from(value[1]) / 255.,
+            b: f32::from(value[2]) / 255.,
             a: 1.,
         }
     }
@@ -54,7 +54,7 @@ impl EditorState {
     }
 
     pub fn get_brush_color_array(&self) -> [f32; 4] {
-        self.brush_color.to_array()
+        self.brush_color.to_rgba_array()
     }
 }
 

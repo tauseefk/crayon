@@ -32,7 +32,11 @@ impl UiRenderer {
             None,
             Some(2 * 1024),
         );
-        let egui_renderer = Renderer::new(device, output_color_format, Default::default());
+        let egui_renderer = Renderer::new(
+            device,
+            output_color_format,
+            egui_wgpu::RendererOptions::default(),
+        );
 
         Self {
             state: egui_state,
@@ -63,11 +67,12 @@ impl UiRenderer {
         encoder: &mut CommandEncoder,
         window: &Window,
         window_surface_view: &TextureView,
-        screen_descriptor: ScreenDescriptor,
+        screen_descriptor: &ScreenDescriptor,
     ) {
-        if !self.frame_started {
-            panic!("begin_frame must be called before end_frame_and_draw can be called!");
-        }
+        assert!(
+            self.frame_started,
+            "begin_frame must be called before end_frame_and_draw can be called!"
+        );
 
         self.ppp(screen_descriptor.pixels_per_point);
         let full_output = self.state.egui_ctx().end_pass();
@@ -83,7 +88,7 @@ impl UiRenderer {
                 .update_texture(device, queue, *id, image_delta);
         }
         self.renderer
-            .update_buffers(device, queue, encoder, &tris, &screen_descriptor);
+            .update_buffers(device, queue, encoder, &tris, screen_descriptor);
 
         {
             let rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -104,7 +109,7 @@ impl UiRenderer {
 
             // HACK: not sure if there's a cleaner way to do it without `forget_lifetime`
             self.renderer
-                .render(&mut rpass.forget_lifetime(), &tris, &screen_descriptor);
+                .render(&mut rpass.forget_lifetime(), &tris, screen_descriptor);
         }
 
         for x in &full_output.textures_delta.free {

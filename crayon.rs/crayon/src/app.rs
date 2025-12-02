@@ -6,12 +6,16 @@ use std::time::Instant;
 use web_time::Instant;
 
 pub struct App {
-    proxy: EventLoopProxy<CustomEvent>,
-    state: Option<State>,
-    window: Option<Arc<winit::window::Window>>,
-    camera_controller: CameraController,
     brush_controller: BrushController,
+    camera_controller: CameraController,
     last_render: Instant,
+    proxy: EventLoopProxy<CustomEvent>,
+    /// Without `window` being available at initalization
+    /// it's not possible to get a handle to the GPU device
+    /// `State` -> `RendererState` rely on the device being available
+    state: Option<State>,
+    /// On `web`, `window` is not available at initalization
+    window: Option<Arc<winit::window::Window>>,
 }
 
 impl App {
@@ -193,7 +197,7 @@ impl ApplicationHandler<CustomEvent> for App {
                     Err(e) => {
                         log::error!("Unable to render to display {e}");
                     }
-                };
+                }
 
                 // Cap framerate
                 let now = Instant::now();
