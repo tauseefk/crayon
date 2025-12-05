@@ -25,79 +25,17 @@ A static singleton `RwLock` tool state struct that can be accessed across the ap
 
 This is a bit more heavy handed, as it changes how the entire app functions instead of incremental change.
 
-```rust
-use std::sync::{Arc, RwLock};
-use std::any::{Any, TypeId};
-use std::collections::HashMap;
+We're going with the heavy handed approach.
 
-pub struct App {
-    resources: HashMap<TypeId, Arc<dyn Any + Send + Sync>>,
-    systems: Vec<Box<dyn System>>,
-}
+I've already tried the Resources and Systems approach on Eeks, and it works well.
 
-impl App {
-    pub fn new() -> Self {
-        Self {
-            resources: HashMap::new(),
-            systems: Vec::new(),
-        }
-    }
+Need to figure out how to structure the app's Event handling. Wondering if the event loop proxy needs to itself be a resource that can be polled, or an event handling system that does the work.
 
-    pub fn insert_resource<T: Send + Sync + 'static>(&mut self, resource: T) {
-        self.resources.insert(
-            TypeId::of::<T>(),
-            Arc::new(RwLock::new(resource))
-        );
-    }
+#### Approach 1 - EventLoopProxy as a resource
 
-    // Get a resource (read-only)
-    pub fn resource<T: Send + Sync + 'static>(&self) -> Arc<RwLock<T>> {
-        self.resources
-            .get(&TypeId::of::<T>())
-            .expect("Resource not found")
-            .clone()
-            .downcast::<RwLock<T>>()
-            .unwrap()
-    }
+The BrushController can get renamed to BrushSystem.
+The System will then map over the eventLoopProxy events, instead of taking each event via the processor interface.
 
-    pub fn add_system(&mut self, system: impl System + 'static) {
-        self.systems.push(Box::new(system));
-    }
-
-    pub fn run(&self) {
-        for system in &self.systems {
-            system.run(self);
-        }
-    }
-}
-
-pub trait System: Send + Sync {
-    fn run(&self, app: &App);
-}
-
-// Example usage:
-struct AppState {
-    counter: i32,
-}
-
-struct MySystem;
-
-impl System for MySystem {
-    fn run(&self, app: &App) {
-        let state = app.resource::<AppState>();
-        let mut state = state.write().unwrap();
-        state.counter += 1;
-        println!("Counter: {}", state.counter);
-    }
-}
-
-fn main() {
-    let mut app = App::new();
-    
-    app.insert_resource(AppState { counter: 0 });
-    
-    app.add_system(MySystem);
-    
-    app.run();
-}
-```
+BrushSystem can be just a `Startup` system that connects the event handlers?
+if not, then the brush system would need to poll some sort of event queue resource<WindowEvent>.
+These events will then allow BrushController to fire events via the `EventSender` resource.
