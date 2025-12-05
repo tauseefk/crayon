@@ -1,4 +1,7 @@
-use crate::resources::frame_time::FrameTime;
+use crate::{
+    app::App, resource::ResourceContext, resources::frame_time::FrameTime,
+    systems::ui::drawable::Drawable,
+};
 
 pub struct FpsWidget;
 
@@ -6,8 +9,14 @@ impl FpsWidget {
     pub fn new() -> Self {
         Self
     }
+}
 
-    pub fn draw(&self, ctx: &egui::Context, frame_time: &FrameTime) {
+impl Drawable for FpsWidget {
+    fn draw(&self, ctx: &egui::Context, app: &App) {
+        let frame_time = app
+            .read::<FrameTime>()
+            .expect("FrameTime resource not found");
+
         let screen_width = ctx.content_rect().width();
 
         egui::Window::new("FPS")

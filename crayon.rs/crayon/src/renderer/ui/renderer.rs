@@ -1,5 +1,5 @@
-use crate::prelude::*;
 use super::egui_renderer::UiRenderer;
+use crate::prelude::*;
 use egui_wgpu::ScreenDescriptor;
 use egui_wgpu::wgpu::{CommandEncoder, Device, Queue, TextureFormat, TextureView};
 use winit::event::WindowEvent;

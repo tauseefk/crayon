@@ -1,4 +1,7 @@
-use crate::prelude::BrushColor;
+use crate::{
+    app::App, prelude::BrushColor, resource::ResourceContext, state::State,
+    systems::ui::drawable::Drawable,
+};
 
 pub struct ColorPickerWidget;
 
@@ -6,8 +9,16 @@ impl ColorPickerWidget {
     pub fn new() -> Self {
         Self
     }
+}
 
-    pub fn draw(&self, ctx: &egui::Context, current_color: &BrushColor) {
+impl Drawable for ColorPickerWidget {
+    fn draw(&self, ctx: &egui::Context, app: &App) {
+        let Some(state) = app.read::<State>() else {
+            return;
+        };
+
+        let current_color = &state.editor.brush_color;
+
         egui::Window::new("Controls")
             .fixed_pos(egui::pos2(8.0, 8.0))
             .movable(false)
@@ -24,6 +35,7 @@ impl ColorPickerWidget {
                 if ui.color_edit_button_srgb(&mut color).changed() {
                     let new_color = BrushColor::from(color);
                     println!("{new_color:?}");
+                    // state.editor.brush_color = new_color;
                 }
             });
     }

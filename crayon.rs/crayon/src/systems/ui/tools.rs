@@ -2,37 +2,29 @@ use crate::app::{App, WindowResource};
 use crate::renderer::egui_context::EguiContext;
 use crate::renderer::render_context::RenderContext;
 use crate::resource::ResourceContext;
-use crate::resources::frame_time::FrameTime;
 use crate::state::State;
 use crate::system::System;
+use crate::systems::ui::drawable::Drawable;
 
 use super::{ColorPickerWidget, FpsWidget};
 
 pub struct ToolsSystem {
-    fps_widget: FpsWidget,
-    color_picker_widget: ColorPickerWidget,
+    tools: [Box<dyn Drawable>; 2],
 }
 
 impl ToolsSystem {
     pub fn new() -> Self {
         Self {
-            fps_widget: FpsWidget::new(),
-            color_picker_widget: ColorPickerWidget::new(),
+            tools: [
+                Box::new(FpsWidget::new()),
+                Box::new(ColorPickerWidget::new()),
+            ],
         }
     }
 }
 
 impl System for ToolsSystem {
     fn run(&self, app: &App) {
-        let frame_time = app
-            .read::<FrameTime>()
-            .expect("FrameTime resource not found");
-
-        // Early return if State is not initialized yet
-        let Some(state_res) = app.read::<State>() else {
-            return;
-        };
-
         let mut egui_ctx_res = app
             .write::<EguiContext>()
             .expect("EguiContext resource not found");
@@ -56,9 +48,9 @@ impl System for ToolsSystem {
         let raw_input = egui_ctx_res.egui_state.take_egui_input(&window_res.0);
 
         let full_output = egui_ctx_res.egui_ctx.run(raw_input, |ctx| {
-            self.fps_widget.draw(ctx, &frame_time);
-            self.color_picker_widget
-                .draw(ctx, &state_res.editor.brush_color);
+            for tool in &self.tools {
+                tool.draw(ctx, app);
+            }
         });
 
         egui_ctx_res
