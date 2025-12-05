@@ -9,8 +9,10 @@ mod event_sender;
 mod events;
 mod renderer;
 mod resource;
+mod resources;
 mod state;
 mod system;
+mod systems;
 mod texture;
 mod utils;
 
@@ -43,7 +45,7 @@ mod prelude {
     pub use crate::editor_state::*;
     pub use crate::event_sender::*;
     pub use crate::events::*;
-    pub use crate::renderer::{brush::*, camera::*, pipeline::*, state::*};
+    pub use crate::renderer::{brush::*, camera::*, pipeline::*};
     pub use crate::resource::*;
     pub use crate::state::*;
     pub use crate::system::*;
@@ -51,6 +53,9 @@ mod prelude {
     pub use crate::utils::*;
 }
 
+use crate::resources::frame_time::FrameTime;
+use crate::systems::frame_time_update::FrameTimeUpdateSystem;
+use crate::systems::ui::ToolsSystem;
 use prelude::*;
 
 pub fn run() -> anyhow::Result<()> {
@@ -67,6 +72,11 @@ pub fn run() -> anyhow::Result<()> {
     let event_loop = EventLoop::with_user_event().build()?;
     let event_loop_proxy = event_loop.create_proxy();
     let mut app = App::new(event_loop_proxy);
+
+    app.insert_resource(FrameTime::new());
+
+    app.add_system(Schedule::Update, FrameTimeUpdateSystem)
+        .add_system(Schedule::Update, ToolsSystem::new());
 
     event_loop.run_app(&mut app)?;
 

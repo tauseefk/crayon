@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 pub struct State {
     camera: Camera2D,
-    editor: EditorState,
+    pub editor: EditorState,
     pub last_render: Instant,
 }
 

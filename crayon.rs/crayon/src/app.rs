@@ -1,4 +1,7 @@
-use crate::prelude::*;
+use crate::{
+    prelude::*,
+    renderer::{egui_context::EguiContext, render_context::RenderContext},
+};
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
@@ -6,6 +9,8 @@ use std::{
     any::{Any, TypeId},
     collections::HashMap,
     sync::RwLock,
+    thread::sleep,
+    time::Duration,
 };
 #[cfg(target_arch = "wasm32")]
 use web_time::Instant;
@@ -102,10 +107,16 @@ impl ApplicationHandler<CustomEvent> for App {
                 let html_canvas_element = canvas.unchecked_into();
                 window_attributes = window_attributes.with_canvas(Some(html_canvas_element));
             }
-            let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
 
-            self.insert_resource(WindowResource(window))
-                .insert_resource(State::new());
+            let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
+            let render_context = pollster::block_on(RenderContext::new(window.clone()));
+            let egui_context = EguiContext::new(window.clone(), &render_context);
+            let app_state = State::new();
+
+            self.insert_resource(render_context)
+                .insert_resource(egui_context)
+                .insert_resource(app_state)
+                .insert_resource(WindowResource(window));
         }
     }
 
@@ -195,6 +206,10 @@ impl ApplicationHandler<CustomEvent> for App {
         _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
+        // Run update systems before acquiring State lock
+        self.run_update_systems();
+
+        // Check if State exists before processing events
         let Some(app_state) = &mut self.write::<State>() else {
             // if there's no app_state, the window might not have been initialized
             // no need to start processing events yet
@@ -203,7 +218,11 @@ impl ApplicationHandler<CustomEvent> for App {
 
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
-            WindowEvent::Resized(size) => app_state.resize(size.width, size.height),
+            WindowEvent::Resized(size) => {
+                if let Some(mut render_ctx) = self.write::<RenderContext>() {
+                    render_ctx.reconfigure(size);
+                }
+            }
             WindowEvent::RedrawRequested => {
                 match app_state.render() {
                     Ok(()) => {}
@@ -220,13 +239,14 @@ impl ApplicationHandler<CustomEvent> for App {
                 }
 
                 // Cap framerate
+                sleep(Duration::from_millis(5));
                 let now = Instant::now();
-                if now.duration_since(app_state.last_render).as_millis() >= 5 {
-                    app_state.last_render = now;
-                    if let Some(window_res) = self.read::<WindowResource>() {
-                        window_res.0.request_redraw();
-                    }
+                // if now.duration_since(app_state.last_render).as_millis() >= 5 {
+                app_state.last_render = now;
+                if let Some(window_res) = self.read::<WindowResource>() {
+                    window_res.0.request_redraw();
                 }
+                // }
             }
             event => {
                 // Pass events to UI first, return early if consumed
