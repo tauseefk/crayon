@@ -206,8 +206,21 @@ impl ApplicationHandler<CustomEvent> for App {
         _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
+        // Pass events to egui first, before any other processing
+        if let (Some(mut egui_ctx), Some(window)) =
+            (self.write::<EguiContext>(), self.read::<WindowResource>())
+        {
+            let event_response = egui_ctx.egui_state.on_window_event(&window.0, &event);
+            if event_response.consumed {
+                // Egui consumed the event, don't process further
+                return;
+            }
+        }
+
         // Run update systems before acquiring State lock
-        self.run_update_systems();
+        if matches!(event, WindowEvent::RedrawRequested) {
+            self.run_update_systems();
+        }
 
         // Check if State exists before processing events
         let Some(app_state) = &mut self.write::<State>() else {
@@ -241,12 +254,10 @@ impl ApplicationHandler<CustomEvent> for App {
                 // Cap framerate
                 sleep(Duration::from_millis(5));
                 let now = Instant::now();
-                // if now.duration_since(app_state.last_render).as_millis() >= 5 {
                 app_state.last_render = now;
                 if let Some(window_res) = self.read::<WindowResource>() {
                     window_res.0.request_redraw();
                 }
-                // }
             }
             event => {
                 // Pass events to UI first, return early if consumed
