@@ -3,6 +3,7 @@ use crate::app::App;
 #[derive(Copy, Clone)]
 pub enum Schedule {
     /// Systems run once at startup.
+    #[allow(dead_code)]
     Startup,
     /// Systems that go brrrrrr.
     Update,
