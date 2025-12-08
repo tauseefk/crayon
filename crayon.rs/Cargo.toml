@@ -27,4 +27,4 @@ codegen-units = 1
 debug = 2
 panic = "abort"
 # comment the following to profile with Instruments
-strip = "debuginfo"
+# strip = "debuginfo"

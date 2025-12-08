@@ -1,11 +1,8 @@
-use std::time::Instant;
-
 use crate::prelude::*;
 
 pub struct State {
-    camera: Camera2D,
+    pub camera: Camera2D,
     pub editor: EditorState,
-    pub last_render: Instant,
 }
 
 impl State {
@@ -19,7 +16,6 @@ impl State {
         Self {
             camera,
             editor: editor_state,
-            last_render: Instant::now(),
         }
     }
 

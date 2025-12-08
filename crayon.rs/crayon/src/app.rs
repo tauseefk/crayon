@@ -1,7 +1,9 @@
 use crate::{
     prelude::*,
-    renderer::{egui_context::EguiContext, frame_context::FrameContext, render_context::RenderContext},
-    resources::{canvas_state::CanvasState, input_system::InputSystem},
+    renderer::{
+        egui_context::EguiContext, frame_context::FrameContext, render_context::RenderContext,
+    },
+    resources::{canvas_state::CanvasContext, input_system::InputSystem},
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -136,7 +138,8 @@ impl ApplicationHandler<CustomEvent> for App {
             let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
             let render_context = pollster::block_on(RenderContext::new(window.clone()));
             let window_size = window.inner_size();
-            let canvas_state = CanvasState::new(&render_context, (window_size.width, window_size.height));
+            let canvas_state =
+                CanvasContext::new(&render_context, (window_size.width, window_size.height));
             let egui_context = EguiContext::new(window.clone(), &render_context);
             let app_state = State::new();
 
@@ -159,36 +162,44 @@ impl ApplicationHandler<CustomEvent> for App {
                     }
                 }
             }
+            // TODO: cleanup the transformation code
             CustomEvent::CameraMove { position } => {
-                if let Some(window_res) = &self.read::<WindowResource>() {
+                if let (Some(window_res), Some(canvas_ctx), Some(render_ctx), Some(mut state)) = (
+                    self.read::<WindowResource>(),
+                    &mut self.write::<CanvasContext>(),
+                    self.read::<RenderContext>(),
+                    self.write::<State>(),
+                ) {
                     let window_size = window_res.0.inner_size();
-
-                    if let Some(state) = &mut self.write::<State>() {
-                        let world_translation = screen_to_world_position(
-                            position,
-                            #[allow(clippy::cast_precision_loss)]
-                            (window_size.width as f32, window_size.height as f32),
-                        );
-
-                        state.update_camera(Some(CameraTransform {
-                            translation: Some(clamp::clamp_point(world_translation)),
-                            ..Default::default()
-                        }));
-                        window_res.0.request_redraw();
-                    }
+                    let world_translation = screen_to_world_position(
+                        position,
+                        #[allow(clippy::cast_precision_loss)]
+                        (window_size.width as f32, window_size.height as f32),
+                    );
+                    let transform = CameraTransform {
+                        translation: Some(clamp::clamp_point(world_translation)),
+                        ..Default::default()
+                    };
+                    state.camera.update(&transform);
+                    canvas_ctx.update_camera_buffer(render_ctx, &state.camera);
                 }
             }
+            // TODO: cleanup the transformation code
             CustomEvent::CameraZoom { delta } => {
-                if let Some(state) = &mut self.write::<State>() {
-                    state.update_camera(Some(CameraTransform {
+                if let (Some(canvas_ctx), Some(render_ctx), Some(mut state)) = (
+                    &mut self.write::<CanvasContext>(),
+                    self.read::<RenderContext>(),
+                    self.write::<State>(),
+                ) {
+                    let transform = CameraTransform {
                         scale_delta: Some(delta),
                         ..Default::default()
-                    }));
-                    if let Some(window) = &self.read::<WindowResource>() {
-                        window.0.request_redraw();
-                    }
+                    };
+                    state.camera.update(&transform);
+                    canvas_ctx.update_camera_buffer(render_ctx, &state.camera);
                 }
             }
+            // TODO: cleanup the transformation code
             CustomEvent::BrushPoint { dot } => {
                 if let Some(window) = &self.read::<WindowResource>() {
                     let window_size = window.0.inner_size();
@@ -200,22 +211,30 @@ impl ApplicationHandler<CustomEvent> for App {
                     );
                     let clamped_position = clamp::clamp_point(brush_position);
 
-                    if let Some(state) = &mut self.write::<State>() {
-                        state.update_paint(&Dot2D {
-                            position: clamped_position,
-                            radius: dot.radius,
-                        });
-                        state.paint_to_texture();
-                        window.0.request_redraw();
+                    if let (Some(canvas_ctx), Some(render_ctx), Some(state)) = (
+                        &mut self.write::<CanvasContext>(),
+                        self.read::<RenderContext>(),
+                        self.read::<State>(),
+                    ) {
+                        canvas_ctx.update_paint_buffer(
+                            render_ctx,
+                            &Dot2D {
+                                position: clamped_position,
+                                radius: dot.radius,
+                            },
+                            &state.camera,
+                        );
                     }
                 }
             }
             CustomEvent::UpdateBrushColor(color) => {
-                if let Some(state) = &mut self.write::<State>() {
-                    state.update_brush_color(color);
-                    if let Some(window) = &self.read::<WindowResource>() {
-                        window.0.request_redraw();
-                    }
+                if let (Some(mut state), Some(mut canvas_ctx), Some(render_ctx)) = (
+                    self.write::<State>(),
+                    self.write::<CanvasContext>(),
+                    self.read::<RenderContext>(),
+                ) {
+                    state.editor.update_brush_color(color);
+                    canvas_ctx.update_brush_color(render_ctx, color.to_rgba_array());
                 }
             }
             // this is useful for syncing UI with tools eg. UI needs to show a larger brush pointer when zoomed in
@@ -251,13 +270,6 @@ impl ApplicationHandler<CustomEvent> for App {
             self.run_update_systems();
         }
 
-        // Check if State exists before processing events
-        let Some(app_state) = &mut self.write::<State>() else {
-            // if there's no app_state, the window might not have been initialized
-            // no need to start processing events yet
-            return;
-        };
-
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => {
@@ -266,24 +278,9 @@ impl ApplicationHandler<CustomEvent> for App {
                 }
             }
             WindowEvent::RedrawRequested => {
-                match app_state.render() {
-                    Ok(()) => {}
-                    Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                        // re-configure to the same window size as the one just lost
-                        if let Some(window_res) = self.read::<WindowResource>() {
-                            let size = window_res.0.inner_size();
-                            app_state.resize(size.width, size.height);
-                        }
-                    }
-                    Err(e) => {
-                        log::error!("Unable to render to display {e}");
-                    }
-                }
-
                 // Cap framerate
+                #[cfg(not(target_arch = "wasm32"))]
                 sleep(Duration::from_millis(5));
-                let now = Instant::now();
-                app_state.last_render = now;
                 if let Some(window_res) = self.read::<WindowResource>() {
                     window_res.0.request_redraw();
                 }

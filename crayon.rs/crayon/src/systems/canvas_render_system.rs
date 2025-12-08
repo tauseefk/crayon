@@ -2,7 +2,7 @@ use crate::{
     app::App,
     prelude::*,
     renderer::{frame_context::FrameContext, render_context::RenderContext},
-    resources::canvas_state::CanvasState,
+    resources::canvas_state::CanvasContext,
     system::System,
 };
 
@@ -17,7 +17,7 @@ impl System for CanvasRenderSystem {
         let Some(frame_ctx) = app.read::<FrameContext>() else {
             return;
         };
-        let Some(canvas) = app.read::<CanvasState>() else {
+        let Some(canvas) = app.read::<CanvasContext>() else {
             return;
         };
 

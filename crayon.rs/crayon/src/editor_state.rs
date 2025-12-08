@@ -36,7 +36,7 @@ impl From<[u8; 3]> for BrushColor {
     }
 }
 
-pub const COLOR_A: BrushColor = BrushColor::new(128.0 / 255.0, 85.0 / 255.0, 1.0, 1.0);
+pub const DEFAULT_BRUSH_COLOR: BrushColor = BrushColor::new(128.0 / 255.0, 85.0 / 255.0, 1.0, 1.0);
 
 pub struct EditorState {
     pub brush_color: BrushColor,
@@ -45,7 +45,7 @@ pub struct EditorState {
 impl EditorState {
     pub fn new() -> Self {
         Self {
-            brush_color: COLOR_A,
+            brush_color: DEFAULT_BRUSH_COLOR,
         }
     }
 
