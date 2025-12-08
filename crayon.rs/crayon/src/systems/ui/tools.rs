@@ -2,12 +2,16 @@ use crate::app::{App, WindowResource};
 use crate::renderer::egui_context::EguiContext;
 use crate::renderer::render_context::RenderContext;
 use crate::resource::ResourceContext;
-use crate::state::State;
 use crate::system::System;
 use crate::systems::ui::drawable::Drawable;
 
 use super::{ColorPickerWidget, FpsWidget};
 
+/// Renders UI widgets using egui.
+///
+/// NOTE: Currently gets surface texture and presents separately from CanvasRenderSystem.
+/// This works because ToolsSystem runs after CanvasRenderSystem and uses LoadOp::Load.
+/// Future improvement: Share surface texture acquisition and combine render passes.
 pub struct ToolsSystem {
     tools: [Box<dyn Drawable>; 2],
 }
@@ -109,12 +113,8 @@ impl System for ToolsSystem {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.1,
-                            b: 0.1,
-                            a: 1.0,
-                        }),
+                        // Load instead of Clear to preserve canvas rendering
+                        load: wgpu::LoadOp::Load,
                         store: wgpu::StoreOp::Store,
                     },
                     depth_slice: None,

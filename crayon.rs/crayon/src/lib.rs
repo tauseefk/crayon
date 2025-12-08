@@ -54,6 +54,7 @@ mod prelude {
 }
 
 use crate::resources::frame_time::FrameTime;
+use crate::systems::canvas_render_system::CanvasRenderSystem;
 use crate::systems::frame_time_update::FrameTimeUpdateSystem;
 use crate::systems::ui::ToolsSystem;
 use prelude::*;
@@ -76,6 +77,7 @@ pub fn run() -> anyhow::Result<()> {
     app.insert_resource(FrameTime::new());
 
     app.add_system(Schedule::Update, FrameTimeUpdateSystem)
+        .add_system(Schedule::Update, CanvasRenderSystem)
         .add_system(Schedule::Update, ToolsSystem::new());
 
     event_loop.run_app(&mut app)?;

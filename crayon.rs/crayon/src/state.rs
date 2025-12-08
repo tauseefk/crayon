@@ -51,6 +51,7 @@ impl State {
     }
 
     pub fn update_paint(&mut self, dot: &Dot2D) {
+        println!("{dot}");
         // self.renderer.update_paint_buffer(dot, &self.camera);
     }
 
@@ -62,12 +63,6 @@ impl State {
         self.editor.update_brush_color(color);
         let color_array = self.editor.get_brush_color_array();
         // self.renderer.update_brush_color(color_array);
-    }
-
-    pub fn handle_ui_event(&mut self, event: &winit::event::WindowEvent) -> bool {
-        return false;
-        // TODO: fix this
-        // self.renderer.handle_ui_event(event)
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {

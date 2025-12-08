@@ -1,6 +1,7 @@
 use crate::{
     prelude::*,
     renderer::{egui_context::EguiContext, render_context::RenderContext},
+    resources::{canvas_state::CanvasState, input_system::InputSystem},
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -41,7 +42,8 @@ impl App {
         };
 
         // Store EventSender as a resource for UI widgets
-        app.insert_resource(event_sender);
+        app.insert_resource(event_sender.clone());
+        app.insert_resource(InputSystem::new(event_sender));
 
         app
     }
@@ -116,10 +118,13 @@ impl ApplicationHandler<CustomEvent> for App {
 
             let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
             let render_context = pollster::block_on(RenderContext::new(window.clone()));
+            let window_size = window.inner_size();
+            let canvas_state = CanvasState::new(&render_context, (window_size.width, window_size.height));
             let egui_context = EguiContext::new(window.clone(), &render_context);
             let app_state = State::new();
 
             self.insert_resource(render_context)
+                .insert_resource(canvas_state)
                 .insert_resource(egui_context)
                 .insert_resource(app_state)
                 .insert_resource(WindowResource(window));
@@ -266,14 +271,9 @@ impl ApplicationHandler<CustomEvent> for App {
                 }
             }
             event => {
-                // Pass events to UI first, return early if consumed
-                if app_state.handle_ui_event(&event) {
-                    return;
+                if let Some(mut input_system) = self.write::<InputSystem>() {
+                    input_system.process_event(&event);
                 }
-
-                // TODO: decouple brush and camera controllers
-                // self.brush_controller.process_event(&event);
-                // self.camera_controller.process_event(&event);
 
                 if let WindowEvent::KeyboardInput {
                     event:

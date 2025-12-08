@@ -42,8 +42,6 @@ pub struct RendererState {
     pub paint_pipeline: wgpu::RenderPipeline,
     /// `true` if rendering to a, `false` if rendering to b
     is_rendering_to_a: bool,
-    // UI
-    ui: crate::renderer::ui::CrayonUI,
 }
 
 impl RendererState {
@@ -374,8 +372,6 @@ impl RendererState {
         // --- PAINT PIPELINE END --- //
         // -------------------------- //
 
-        let ui = crate::renderer::ui::CrayonUI::new(&device, surface_format, &window, event_sender);
-
         Ok(Self {
             window,
             surface,
@@ -405,7 +401,6 @@ impl RendererState {
             paint_fragment_bind_group_b,
             paint_pipeline,
             is_rendering_to_a: true,
-            ui,
         })
     }
 
@@ -580,19 +575,6 @@ impl RendererState {
         render_pass.draw_indexed(0..self.index_count, 0, 0..1);
     }
 
-    fn render_ui(&mut self, encoder: &mut wgpu::CommandEncoder, surface_view: &wgpu::TextureView) {
-        let current_color = self.paint_fragment_uniform.get_color_as_brush_color();
-
-        self.ui.render(
-            &self.context.device,
-            &self.context.queue,
-            encoder,
-            &self.window,
-            surface_view,
-            current_color,
-        );
-    }
-
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         if !self.is_surface_configured {
             return Ok(());
@@ -611,16 +593,11 @@ impl RendererState {
                 });
 
         self.render_canvas(&mut encoder, &surface_view);
-        self.render_ui(&mut encoder, &surface_view);
 
         self.context.queue.submit(std::iter::once(encoder.finish()));
         self.window.pre_present_notify();
         output.present();
 
         Ok(())
-    }
-
-    pub fn handle_ui_event(&mut self, event: &winit::event::WindowEvent) -> bool {
-        self.ui.handle_event(&self.window, event)
     }
 }
