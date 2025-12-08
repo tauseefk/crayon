@@ -53,6 +53,7 @@ mod prelude {
     pub use crate::utils::*;
 }
 
+use crate::resources::brush_point_queue::BrushPointQueue;
 use crate::resources::frame_time::FrameTime;
 use crate::systems::canvas_render_system::CanvasRenderSystem;
 use crate::systems::frame_acquire_system::FrameAcquireSystem;
@@ -78,6 +79,7 @@ pub fn run() -> anyhow::Result<()> {
     let mut app = App::new(event_loop_proxy);
 
     app.insert_resource(FrameTime::new());
+    app.insert_resource(BrushPointQueue::new());
 
     app.add_system(Schedule::PreUpdate, FrameAcquireSystem)
         .add_system(Schedule::Update, FrameTimeUpdateSystem)

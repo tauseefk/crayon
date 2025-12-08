@@ -73,6 +73,7 @@ pub struct CameraTransform {
     pub translation: Option<cgmath::Point2<f32>>,
 }
 
+#[derive(Clone)]
 pub struct Camera2D {
     /// remains the same in both axes
     scale: f32,

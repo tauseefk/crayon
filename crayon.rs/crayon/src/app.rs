@@ -3,7 +3,9 @@ use crate::{
     renderer::{
         egui_context::EguiContext, frame_context::FrameContext, render_context::RenderContext,
     },
-    resources::{canvas_state::CanvasContext, input_system::InputSystem},
+    resources::{
+        brush_point_queue::BrushPointQueue, canvas_state::CanvasContext, input_system::InputSystem,
+    },
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -156,6 +158,9 @@ impl ApplicationHandler<CustomEvent> for App {
                 println!("{} {}", self.raw_point_count, self.processed_point_count);
                 self.raw_point_count = 0;
                 self.processed_point_count = 0;
+                if let Some(mut queue) = self.write::<BrushPointQueue>() {
+                    queue.clear();
+                }
                 if let (Some(canvas_ctx), Some(render_ctx)) = (
                     &mut self.write::<CanvasContext>(),
                     self.read::<RenderContext>(),
@@ -205,7 +210,11 @@ impl ApplicationHandler<CustomEvent> for App {
                 println!("{} {}", dot.position.x, dot.position.y);
                 self.processed_point_count += 1;
 
-                if let Some(window) = &self.read::<WindowResource>() {
+                if let (Some(window), Some(state), Some(mut queue)) = (
+                    self.read::<WindowResource>(),
+                    self.read::<State>(),
+                    self.write::<BrushPointQueue>(),
+                ) {
                     let window_size = window.0.inner_size();
 
                     let brush_position = world_to_ndc(
@@ -215,20 +224,13 @@ impl ApplicationHandler<CustomEvent> for App {
                     );
                     let clamped_position = clamp::clamp_point(brush_position);
 
-                    if let (Some(canvas_ctx), Some(render_ctx), Some(state)) = (
-                        &mut self.write::<CanvasContext>(),
-                        self.read::<RenderContext>(),
-                        self.read::<State>(),
-                    ) {
-                        canvas_ctx.update_paint_buffer(
-                            &render_ctx,
-                            &Dot2D {
-                                position: clamped_position,
-                                radius: dot.radius,
-                            },
-                            &state.camera,
-                        );
-                    }
+                    queue.enqueue(
+                        Dot2D {
+                            position: clamped_position,
+                            radius: dot.radius,
+                        },
+                        state.camera.clone(),
+                    );
                 }
             }
             CustomEvent::UpdateBrushColor(color) => {
