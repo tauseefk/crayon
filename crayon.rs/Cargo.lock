@@ -461,6 +461,7 @@ dependencies = [
  "futures",
  "log",
  "pollster",
+ "rasengan",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -1649,6 +1650,12 @@ name = "range-alloc"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d6831663a5098ea164f89cff59c6284e95f4e3c76ce9848d4529f5ccca9bde"
+
+[[package]]
+name = "rasengan"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7abcd1a9a1aeb15caad8e3c2c2b51ed5a48f5e36ea48f79e6495f3a93a65c2c2"
 
 [[package]]
 name = "raw-window-handle"

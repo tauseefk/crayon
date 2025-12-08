@@ -6,7 +6,6 @@ use crate::{
     system::System,
 };
 
-/// Renders all queued brush points to the canvas using the paint pipeline.
 pub struct PaintSystem;
 
 impl System for PaintSystem {
@@ -21,12 +20,9 @@ impl System for PaintSystem {
             return;
         };
 
-        // Process all queued brush points
-        for point_data in queue.drain() {
-            // Update buffer with this point's data
+        while let Some(point_data) = queue.read() {
             canvas_ctx.update_paint_buffer(&render_ctx, &point_data.dot, &point_data.camera);
 
-            // Determine ping-pong textures
             let (read_bind_group, write_texture_view) = if canvas_ctx.is_rendering_to_a {
                 (
                     &canvas_ctx.paint_fragment_bind_group_b,
@@ -39,7 +35,6 @@ impl System for PaintSystem {
                 )
             };
 
-            // Create encoder for this point
             let mut encoder =
                 render_ctx
                     .device

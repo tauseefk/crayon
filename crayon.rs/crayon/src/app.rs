@@ -27,8 +27,6 @@ pub struct App {
     pre_update_systems: Vec<Box<dyn System>>,
     update_systems: Vec<Box<dyn System>>,
     post_update_systems: Vec<Box<dyn System>>,
-    pub raw_point_count: u32,
-    pub processed_point_count: u32,
 }
 
 impl App {
@@ -41,8 +39,6 @@ impl App {
             pre_update_systems: vec![],
             update_systems: vec![],
             post_update_systems: vec![],
-            raw_point_count: 0,
-            processed_point_count: 0,
         };
 
         // Store EventSender as a resource for UI widgets
@@ -134,6 +130,7 @@ impl ApplicationHandler<CustomEvent> for App {
             }
 
             let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
+
             let render_context = pollster::block_on(RenderContext::new(window.clone()));
             let window_size = window.inner_size();
             let canvas_state =
@@ -155,12 +152,6 @@ impl ApplicationHandler<CustomEvent> for App {
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: CustomEvent) {
         match event {
             CustomEvent::ClearCanvas => {
-                println!("{} {}", self.raw_point_count, self.processed_point_count);
-                self.raw_point_count = 0;
-                self.processed_point_count = 0;
-                if let Some(mut queue) = self.write::<BrushPointQueue>() {
-                    queue.clear();
-                }
                 if let (Some(canvas_ctx), Some(render_ctx)) = (
                     &mut self.write::<CanvasContext>(),
                     self.read::<RenderContext>(),
@@ -207,9 +198,6 @@ impl ApplicationHandler<CustomEvent> for App {
             }
             // TODO: cleanup the transformation code
             CustomEvent::BrushPoint { dot } => {
-                println!("{} {}", dot.position.x, dot.position.y);
-                self.processed_point_count += 1;
-
                 if let (Some(window), Some(state), Some(mut queue)) = (
                     self.read::<WindowResource>(),
                     self.read::<State>(),
@@ -224,7 +212,7 @@ impl ApplicationHandler<CustomEvent> for App {
                     );
                     let clamped_position = clamp::clamp_point(brush_position);
 
-                    queue.enqueue(
+                    queue.write(
                         Dot2D {
                             position: clamped_position,
                             radius: dot.radius,
@@ -278,8 +266,6 @@ impl ApplicationHandler<CustomEvent> for App {
                 }
             }
             event => {
-                self.raw_point_count += 1;
-
                 // Pass events to egui first, before any other processing
                 if let (Some(mut egui_ctx), Some(window)) =
                     (self.write::<EguiContext>(), self.read::<WindowResource>())
