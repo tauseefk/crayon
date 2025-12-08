@@ -1,7 +1,7 @@
 use crate::{
     app::App,
     prelude::*,
-    renderer::render_context::RenderContext,
+    renderer::{frame_context::FrameContext, render_context::RenderContext},
     system::System,
 };
 
@@ -14,6 +14,9 @@ impl System for FramePresentSystem {
         let Some(mut render_ctx) = app.write::<RenderContext>() else {
             return;
         };
+        let Some(mut frame_ctx) = app.write::<FrameContext>() else {
+            return;
+        };
 
         // Submit the encoder
         if let Some(encoder) = render_ctx.encoder.take() {
@@ -21,11 +24,11 @@ impl System for FramePresentSystem {
         }
 
         // Present the surface texture
-        if let Some(texture) = render_ctx.surface_texture.take() {
+        if let Some(texture) = frame_ctx.surface_texture.take() {
             texture.present();
         }
 
         // Clear the view
-        render_ctx.surface_view = None;
+        frame_ctx.surface_view = None;
     }
 }

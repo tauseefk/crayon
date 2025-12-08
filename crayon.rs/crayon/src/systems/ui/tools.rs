@@ -1,5 +1,6 @@
 use crate::app::{App, WindowResource};
 use crate::renderer::egui_context::EguiContext;
+use crate::renderer::frame_context::FrameContext;
 use crate::renderer::render_context::RenderContext;
 use crate::resource::ResourceContext;
 use crate::system::System;
@@ -31,6 +32,9 @@ impl System for ToolsSystem {
         let mut render_ctx_res = app
             .write::<RenderContext>()
             .expect("RenderContext resource not found");
+        let frame_ctx_res = app
+            .read::<FrameContext>()
+            .expect("FrameContext resource not found");
         let window_res = app
             .read::<WindowResource>()
             .expect("WindowResource resource not found");
@@ -85,11 +89,10 @@ impl System for ToolsSystem {
             .queue
             .submit(std::iter::once(encoder.finish()));
 
-        // Get the surface view and shared encoder for the UI render pass
-        let (Some(view), Some(frame_encoder)) = (
-            render_ctx_res.surface_view.as_ref(),
-            render_ctx_res.encoder.as_mut(),
-        ) else {
+        let Some(view) = frame_ctx_res.surface_view.as_ref() else {
+            return;
+        };
+        let Some(frame_encoder) = render_ctx_res.encoder.as_mut() else {
             return;
         };
 

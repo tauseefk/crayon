@@ -1,6 +1,6 @@
 use crate::{
     prelude::*,
-    renderer::{egui_context::EguiContext, render_context::RenderContext},
+    renderer::{egui_context::EguiContext, frame_context::FrameContext, render_context::RenderContext},
     resources::{canvas_state::CanvasState, input_system::InputSystem},
 };
 
@@ -144,6 +144,7 @@ impl ApplicationHandler<CustomEvent> for App {
                 .insert_resource(canvas_state)
                 .insert_resource(egui_context)
                 .insert_resource(app_state)
+                .insert_resource(FrameContext::new())
                 .insert_resource(WindowResource(window));
         }
     }

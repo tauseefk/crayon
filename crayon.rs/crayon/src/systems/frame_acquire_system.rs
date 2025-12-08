@@ -1,7 +1,7 @@
 use crate::{
     app::App,
     prelude::*,
-    renderer::render_context::RenderContext,
+    renderer::{frame_context::FrameContext, render_context::RenderContext},
     system::System,
 };
 
@@ -14,6 +14,9 @@ impl System for FrameAcquireSystem {
         let Some(mut render_ctx) = app.write::<RenderContext>() else {
             return;
         };
+        let Some(mut frame_ctx) = app.write::<FrameContext>() else {
+            return;
+        };
 
         // Get surface texture
         let Ok(texture) = render_ctx.surface.get_current_texture() else {
@@ -24,16 +27,16 @@ impl System for FrameAcquireSystem {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        // Create encoder for the frame
+        // Create encoder
         let encoder = render_ctx
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Frame Encoder"),
             });
 
-        // Store for all render systems to use
-        render_ctx.surface_texture = Some(texture);
-        render_ctx.surface_view = Some(view);
+        // Store in separate resources
+        frame_ctx.surface_texture = Some(texture);
+        frame_ctx.surface_view = Some(view);
         render_ctx.encoder = Some(encoder);
     }
 }

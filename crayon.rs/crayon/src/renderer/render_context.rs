@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use wgpu::{CommandEncoder, Device, Queue, Surface, SurfaceConfiguration, SurfaceTexture};
+use wgpu::{CommandEncoder, Device, Queue, Surface, SurfaceConfiguration};
 use winit::window::Window;
 
 use crate::resource::Resource;
@@ -10,9 +10,6 @@ pub struct RenderContext {
     pub device: Device,
     pub queue: Queue,
     pub config: SurfaceConfiguration,
-    // Frame-local storage (populated by FrameAcquireSystem in PreUpdate schedule)
-    pub surface_texture: Option<SurfaceTexture>,
-    pub surface_view: Option<wgpu::TextureView>,
     pub encoder: Option<CommandEncoder>,
 }
 
@@ -73,8 +70,6 @@ impl RenderContext {
             device,
             queue,
             config,
-            surface_texture: None,
-            surface_view: None,
             encoder: None,
         }
     }

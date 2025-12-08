@@ -1,6 +1,9 @@
 use crate::{
-    app::App, prelude::*, renderer::render_context::RenderContext,
-    resources::canvas_state::CanvasState, system::System,
+    app::App,
+    prelude::*,
+    renderer::{frame_context::FrameContext, render_context::RenderContext},
+    resources::canvas_state::CanvasState,
+    system::System,
 };
 
 /// Renders the canvas to the surface using the camera pipeline.
@@ -8,17 +11,21 @@ pub struct CanvasRenderSystem;
 
 impl System for CanvasRenderSystem {
     fn run(&self, app: &App) {
-        let Some(render_ctx) = app.read::<RenderContext>() else {
+        let Some(mut render_ctx) = app.write::<RenderContext>() else {
             return;
         };
-
+        let Some(frame_ctx) = app.read::<FrameContext>() else {
+            return;
+        };
         let Some(canvas) = app.read::<CanvasState>() else {
             return;
         };
 
-        // Get the surface view and encoder from RenderContext
-        let (Some(view), Some(encoder)) = (render_ctx.surface_view.as_ref(), render_ctx.encoder)
-        else {
+        // Get view from FrameContext (immutable) and encoder from RenderContext (mutable)
+        let Some(view) = frame_ctx.surface_view.as_ref() else {
+            return;
+        };
+        let Some(encoder) = render_ctx.encoder.as_mut() else {
             return;
         };
 
@@ -27,7 +34,7 @@ impl System for CanvasRenderSystem {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Canvas Display Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
+                    view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(CLEAR_COLOR),
@@ -40,7 +47,6 @@ impl System for CanvasRenderSystem {
                 occlusion_query_set: None,
             });
 
-            // Get the appropriate canvas texture bind group based on ping-pong state
             let camera_bind_group = canvas.get_camera_bind_group();
 
             render_pass.set_pipeline(&canvas.camera_pipeline);
