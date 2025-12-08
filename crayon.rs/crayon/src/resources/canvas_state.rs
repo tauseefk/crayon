@@ -343,7 +343,7 @@ impl CanvasContext {
         );
     }
 
-    pub fn update_camera_buffer(&mut self, render_ctx: Res<RenderContext>, camera: &Camera2D) {
+    pub fn update_camera_buffer(&mut self, render_ctx: &RenderContext, camera: &Camera2D) {
         self.camera_uniform.update_view_projection(camera);
         render_ctx.queue.write_buffer(
             &self.camera_vertex_uniform_buffer,
@@ -354,7 +354,7 @@ impl CanvasContext {
 
     pub fn update_paint_buffer(
         &mut self,
-        render_ctx: Res<RenderContext>,
+        render_ctx: &RenderContext,
         dot: &Dot2D,
         camera: &Camera2D,
     ) {
@@ -369,7 +369,7 @@ impl CanvasContext {
         );
     }
 
-    pub fn update_brush_color(&mut self, render_ctx: Res<RenderContext>, color: [f32; 4]) {
+    pub fn update_brush_color(&mut self, render_ctx: &RenderContext, color: [f32; 4]) {
         self.paint_fragment_uniform.set_color(color);
 
         render_ctx.queue.write_buffer(

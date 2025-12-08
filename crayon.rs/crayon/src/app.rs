@@ -25,6 +25,8 @@ pub struct App {
     pre_update_systems: Vec<Box<dyn System>>,
     update_systems: Vec<Box<dyn System>>,
     post_update_systems: Vec<Box<dyn System>>,
+    pub raw_point_count: u32,
+    pub processed_point_count: u32,
 }
 
 impl App {
@@ -37,6 +39,8 @@ impl App {
             pre_update_systems: vec![],
             update_systems: vec![],
             post_update_systems: vec![],
+            raw_point_count: 0,
+            processed_point_count: 0,
         };
 
         // Store EventSender as a resource for UI widgets
@@ -46,7 +50,7 @@ impl App {
         app
     }
 
-    fn run_startup_systems(&self) {
+    fn _run_startup_systems(&self) {
         for system in &self.startup_systems {
             system.run(self);
         }
@@ -141,17 +145,22 @@ impl ApplicationHandler<CustomEvent> for App {
                 .insert_resource(app_state)
                 .insert_resource(FrameContext::new())
                 .insert_resource(WindowResource(window));
+
+            self.run_update_systems();
         }
     }
 
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: CustomEvent) {
         match event {
             CustomEvent::ClearCanvas => {
-                if let Some(state) = &mut self.write::<State>() {
-                    state.clear_canvas();
-                    if let Some(window_res) = &self.read::<WindowResource>() {
-                        window_res.0.request_redraw();
-                    }
+                println!("{} {}", self.raw_point_count, self.processed_point_count);
+                self.raw_point_count = 0;
+                self.processed_point_count = 0;
+                if let (Some(canvas_ctx), Some(render_ctx)) = (
+                    &mut self.write::<CanvasContext>(),
+                    self.read::<RenderContext>(),
+                ) {
+                    canvas_ctx.clear_render_texture(&render_ctx);
                 }
             }
             // TODO: cleanup the transformation code
@@ -173,7 +182,7 @@ impl ApplicationHandler<CustomEvent> for App {
                         ..Default::default()
                     };
                     state.camera.update(&transform);
-                    canvas_ctx.update_camera_buffer(render_ctx, &state.camera);
+                    canvas_ctx.update_camera_buffer(&render_ctx, &state.camera);
                 }
             }
             // TODO: cleanup the transformation code
@@ -188,11 +197,14 @@ impl ApplicationHandler<CustomEvent> for App {
                         ..Default::default()
                     };
                     state.camera.update(&transform);
-                    canvas_ctx.update_camera_buffer(render_ctx, &state.camera);
+                    canvas_ctx.update_camera_buffer(&render_ctx, &state.camera);
                 }
             }
             // TODO: cleanup the transformation code
             CustomEvent::BrushPoint { dot } => {
+                println!("{} {}", dot.position.x, dot.position.y);
+                self.processed_point_count += 1;
+
                 if let Some(window) = &self.read::<WindowResource>() {
                     let window_size = window.0.inner_size();
 
@@ -209,7 +221,7 @@ impl ApplicationHandler<CustomEvent> for App {
                         self.read::<State>(),
                     ) {
                         canvas_ctx.update_paint_buffer(
-                            render_ctx,
+                            &render_ctx,
                             &Dot2D {
                                 position: clamped_position,
                                 radius: dot.radius,
@@ -226,17 +238,18 @@ impl ApplicationHandler<CustomEvent> for App {
                     self.read::<RenderContext>(),
                 ) {
                     state.editor.update_brush_color(color);
-                    canvas_ctx.update_brush_color(render_ctx, color.to_rgba_array());
+                    canvas_ctx.update_brush_color(&render_ctx, color.to_rgba_array());
                 }
             }
             // this is useful for syncing UI with tools eg. UI needs to show a larger brush pointer when zoomed in
             CustomEvent::_UiUpdate => {}
             CustomEvent::CanvasCreated { state } => {
                 self.insert_resource(*state);
-                if let Some(window) = &self.read::<WindowResource>() {
-                    window.0.request_redraw();
-                }
             }
+        }
+
+        if let Some(window) = &self.read::<WindowResource>() {
+            window.0.request_redraw();
         }
     }
 
@@ -246,22 +259,6 @@ impl ApplicationHandler<CustomEvent> for App {
         _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
-        // Pass events to egui first, before any other processing
-        if let (Some(mut egui_ctx), Some(window)) =
-            (self.write::<EguiContext>(), self.read::<WindowResource>())
-        {
-            let event_response = egui_ctx.egui_state.on_window_event(&window.0, &event);
-            if event_response.consumed {
-                // Egui consumed the event, don't process further
-                return;
-            }
-        }
-
-        // Run update systems before acquiring State lock
-        if matches!(event, WindowEvent::RedrawRequested) {
-            self.run_update_systems();
-        }
-
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => {
@@ -270,6 +267,7 @@ impl ApplicationHandler<CustomEvent> for App {
                 }
             }
             WindowEvent::RedrawRequested => {
+                self.run_update_systems();
                 // Cap framerate
                 #[cfg(not(target_arch = "wasm32"))]
                 sleep(Duration::from_millis(5));
@@ -278,6 +276,19 @@ impl ApplicationHandler<CustomEvent> for App {
                 }
             }
             event => {
+                self.raw_point_count += 1;
+
+                // Pass events to egui first, before any other processing
+                if let (Some(mut egui_ctx), Some(window)) =
+                    (self.write::<EguiContext>(), self.read::<WindowResource>())
+                {
+                    let event_response = egui_ctx.egui_state.on_window_event(&window.0, &event);
+                    if event_response.consumed {
+                        // Egui consumed the event, don't process further
+                        return;
+                    }
+                }
+
                 if let Some(mut input_system) = self.write::<InputSystem>() {
                     input_system.process_event(&event);
                 }
