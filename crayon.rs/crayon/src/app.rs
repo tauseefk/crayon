@@ -7,29 +7,24 @@ use crate::{
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-use std::time::Instant;
+use std::thread::sleep;
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Duration;
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
     sync::RwLock,
-    thread::sleep,
-    time::Duration,
 };
-#[cfg(target_arch = "wasm32")]
-use web_time::Instant;
 
 pub struct WindowResource(pub Arc<winit::window::Window>);
 impl Resource for WindowResource {}
 
 pub struct App {
-    brush_controller: BrushController,
-    camera_controller: CameraController,
     resources: HashMap<TypeId, Arc<RwLock<dyn Any + Send + Sync>>>,
     startup_systems: Vec<Box<dyn System>>,
     pre_update_systems: Vec<Box<dyn System>>,
     update_systems: Vec<Box<dyn System>>,
     post_update_systems: Vec<Box<dyn System>>,
-    proxy: EventLoopProxy<CustomEvent>,
 }
 
 impl App {
@@ -37,14 +32,11 @@ impl App {
         let event_sender = EventSender::new(event_loop_proxy.clone());
 
         let mut app = Self {
-            brush_controller: BrushController::new(event_sender.clone()),
-            camera_controller: CameraController::new(event_sender.clone()),
             resources: HashMap::new(),
             startup_systems: vec![],
             pre_update_systems: vec![],
             update_systems: vec![],
             post_update_systems: vec![],
-            proxy: event_loop_proxy,
         };
 
         // Store EventSender as a resource for UI widgets

@@ -281,6 +281,12 @@ impl CanvasContext {
         // --- PAINT PIPELINE END --- //
         // -------------------------- //
 
+        Self::clear_textures(
+            device,
+            &render_ctx.queue,
+            &[&render_texture_a, &render_texture_b],
+        );
+
         Self {
             render_texture_a,
             render_texture_b,

@@ -31,10 +31,6 @@ impl BrushFragmentUniform {
         self.color = color;
     }
 
-    pub fn get_color_as_brush_color(&self) -> BrushColor {
-        BrushColor::new(self.color[0], self.color[1], self.color[2], self.color[3])
-    }
-
     pub fn update_dot(&mut self, dot: &Dot2D) {
         self.position = [dot.position.x, dot.position.y];
         self.size = dot.radius;
