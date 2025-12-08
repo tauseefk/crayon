@@ -5,8 +5,12 @@ pub enum Schedule {
     /// Systems run once at startup.
     #[allow(dead_code)]
     Startup,
-    /// Systems that go brrrrrr.
+    /// Systems run at the start of each frame (setup).
+    PreUpdate,
+    /// Systems that go brrrrrr (main update/render).
     Update,
+    /// Systems run at the end of each frame (cleanup/present).
+    PostUpdate,
 }
 
 pub trait System: Send + Sync {

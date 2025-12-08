@@ -24,7 +24,9 @@ pub struct App {
     camera_controller: CameraController,
     resources: HashMap<TypeId, Arc<RwLock<dyn Any + Send + Sync>>>,
     startup_systems: Vec<Box<dyn System>>,
+    pre_update_systems: Vec<Box<dyn System>>,
     update_systems: Vec<Box<dyn System>>,
+    post_update_systems: Vec<Box<dyn System>>,
     proxy: EventLoopProxy<CustomEvent>,
 }
 
@@ -37,7 +39,9 @@ impl App {
             camera_controller: CameraController::new(event_sender.clone()),
             resources: HashMap::new(),
             startup_systems: vec![],
+            pre_update_systems: vec![],
             update_systems: vec![],
+            post_update_systems: vec![],
             proxy: event_loop_proxy,
         };
 
@@ -55,7 +59,18 @@ impl App {
     }
 
     fn run_update_systems(&self) {
+        // Run pre-update systems first
+        for system in &self.pre_update_systems {
+            system.run(self);
+        }
+
+        // Run main update systems
         for system in &self.update_systems {
+            system.run(self);
+        }
+
+        // Run post-update systems last
+        for system in &self.post_update_systems {
             system.run(self);
         }
     }
@@ -86,7 +101,9 @@ impl SystemRegistry for App {
     fn add_system(&mut self, schedule: Schedule, system: impl System + 'static) -> &mut Self {
         match schedule {
             Schedule::Startup => self.startup_systems.push(Box::new(system)),
+            Schedule::PreUpdate => self.pre_update_systems.push(Box::new(system)),
             Schedule::Update => self.update_systems.push(Box::new(system)),
+            Schedule::PostUpdate => self.post_update_systems.push(Box::new(system)),
         }
 
         self

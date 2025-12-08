@@ -8,10 +8,6 @@ use crate::systems::ui::drawable::Drawable;
 use super::{ColorPickerWidget, FpsWidget};
 
 /// Renders UI widgets using egui.
-///
-/// NOTE: Currently gets surface texture and presents separately from CanvasRenderSystem.
-/// This works because ToolsSystem runs after CanvasRenderSystem and uses LoadOp::Load.
-/// Future improvement: Share surface texture acquisition and combine render passes.
 pub struct ToolsSystem {
     tools: [Box<dyn Drawable>; 2],
 }
@@ -32,22 +28,12 @@ impl System for ToolsSystem {
         let mut egui_ctx_res = app
             .write::<EguiContext>()
             .expect("EguiContext resource not found");
-        let render_ctx_res = app
-            .read::<RenderContext>()
+        let mut render_ctx_res = app
+            .write::<RenderContext>()
             .expect("RenderContext resource not found");
         let window_res = app
             .read::<WindowResource>()
             .expect("WindowResource resource not found");
-
-        // once per frame
-        let output = render_ctx_res
-            .surface
-            .get_current_texture()
-            .expect("Failed to get surface texture");
-
-        let view = output
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
 
         let raw_input = egui_ctx_res.egui_state.take_egui_input(&window_res.0);
 
@@ -99,18 +85,19 @@ impl System for ToolsSystem {
             .queue
             .submit(std::iter::once(encoder.finish()));
 
-        let mut encoder =
-            render_ctx_res
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Render Encoder"),
-                });
+        // Get the surface view and shared encoder for the UI render pass
+        let (Some(view), Some(frame_encoder)) = (
+            render_ctx_res.surface_view.as_ref(),
+            render_ctx_res.encoder.as_mut(),
+        ) else {
+            return;
+        };
 
         {
-            let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            let render_pass = frame_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("UI Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
+                    view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         // Load instead of Clear to preserve canvas rendering
@@ -130,12 +117,6 @@ impl System for ToolsSystem {
                 &screen_descriptor,
             );
         }
-
-        // once per frame
-        render_ctx_res
-            .queue
-            .submit(std::iter::once(encoder.finish()));
-        output.present();
 
         for id in &full_output.textures_delta.free {
             egui_ctx_res.egui_renderer.free_texture(id);

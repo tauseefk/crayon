@@ -4,10 +4,6 @@ use crate::{
 };
 
 /// Renders the canvas to the surface using the camera pipeline.
-///
-/// NOTE: Currently gets surface texture and presents separately from ToolsSystem.
-/// Future improvement: Share surface texture acquisition and combine render passes
-/// into a single presentation to avoid potential issues.
 pub struct CanvasRenderSystem;
 
 impl System for CanvasRenderSystem {
@@ -20,22 +16,11 @@ impl System for CanvasRenderSystem {
             return;
         };
 
-        // Get the surface texture (this will be shared with UI system later)
-        let Ok(output) = render_ctx.surface.get_current_texture() else {
+        // Get the surface view and encoder from RenderContext
+        let (Some(view), Some(encoder)) = (render_ctx.surface_view.as_ref(), render_ctx.encoder)
+        else {
             return;
         };
-
-        let view = output
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-
-        // Create encoder for canvas rendering
-        let mut encoder =
-            render_ctx
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Canvas Render Encoder"),
-                });
 
         // Render canvas to surface
         {
@@ -45,7 +30,7 @@ impl System for CanvasRenderSystem {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        load: wgpu::LoadOp::Clear(CLEAR_COLOR),
                         store: wgpu::StoreOp::Store,
                     },
                     depth_slice: None,
@@ -69,11 +54,5 @@ impl System for CanvasRenderSystem {
 
             render_pass.draw_indexed(0..canvas.index_count, 0, 0..1);
         }
-
-        render_ctx
-            .queue
-            .submit(std::iter::once(encoder.finish()));
-
-        output.present();
     }
 }
