@@ -30,14 +30,20 @@ pub struct App {
 impl App {
     pub fn new(event_loop_proxy: EventLoopProxy<CustomEvent>) -> Self {
         let event_sender = EventSender::new(event_loop_proxy.clone());
-        Self {
+
+        let mut app = Self {
             brush_controller: BrushController::new(event_sender.clone()),
-            camera_controller: CameraController::new(event_sender),
+            camera_controller: CameraController::new(event_sender.clone()),
             resources: HashMap::new(),
             startup_systems: vec![],
             update_systems: vec![],
             proxy: event_loop_proxy,
-        }
+        };
+
+        // Store EventSender as a resource for UI widgets
+        app.insert_resource(event_sender);
+
+        app
     }
 
     fn run_startup_systems(&self) {
