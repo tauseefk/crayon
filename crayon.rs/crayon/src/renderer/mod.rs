@@ -4,4 +4,4 @@ pub mod egui_context;
 pub mod frame_context;
 pub mod pipeline;
 pub mod render_context;
-pub mod state;
+pub mod ui;

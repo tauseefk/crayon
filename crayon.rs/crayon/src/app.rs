@@ -27,6 +27,8 @@ pub struct App {
     pre_update_systems: Vec<Box<dyn System>>,
     update_systems: Vec<Box<dyn System>>,
     post_update_systems: Vec<Box<dyn System>>,
+    #[cfg(target_arch = "wasm32")]
+    event_loop_proxy: EventLoopProxy<CustomEvent>,
 }
 
 impl App {
@@ -39,9 +41,10 @@ impl App {
             pre_update_systems: vec![],
             update_systems: vec![],
             post_update_systems: vec![],
+            #[cfg(target_arch = "wasm32")]
+            event_loop_proxy: event_loop_proxy.clone(),
         };
 
-        // Store EventSender as a resource for UI widgets
         app.insert_resource(event_sender.clone());
         app.insert_resource(InputSystem::new(event_sender));
 
@@ -55,17 +58,14 @@ impl App {
     }
 
     fn run_update_systems(&self) {
-        // Run pre-update systems first
         for system in &self.pre_update_systems {
             system.run(self);
         }
 
-        // Run main update systems
         for system in &self.update_systems {
             system.run(self);
         }
 
-        // Run post-update systems last
         for system in &self.post_update_systems {
             system.run(self);
         }
@@ -131,21 +131,36 @@ impl ApplicationHandler<CustomEvent> for App {
 
             let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
 
-            let render_context = pollster::block_on(RenderContext::new(window.clone()));
-            let window_size = window.inner_size();
-            let canvas_state =
-                CanvasContext::new(&render_context, (window_size.width, window_size.height));
-            let egui_context = EguiContext::new(window.clone(), &render_context);
-            let app_state = State::new();
+            #[cfg(target_arch = "wasm32")]
+            {
+                let proxy = self.event_loop_proxy.clone();
+                wasm_bindgen_futures::spawn_local(async move {
+                    let render_context = RenderContext::new(window.clone()).await;
+                    let _ = proxy.send_event(CustomEvent::CanvasCreated {
+                        render_context: Box::new(render_context),
+                        window: window.clone(),
+                    });
+                });
+            }
 
-            self.insert_resource(render_context)
-                .insert_resource(canvas_state)
-                .insert_resource(egui_context)
-                .insert_resource(app_state)
-                .insert_resource(FrameContext::new())
-                .insert_resource(WindowResource(window));
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let render_context = pollster::block_on(RenderContext::new(window.clone()));
+                let window_size = window.inner_size();
+                let canvas_state =
+                    CanvasContext::new(&render_context, (window_size.width, window_size.height));
+                let egui_context = EguiContext::new(window.clone(), &render_context);
+                let app_state = State::new();
 
-            self.run_update_systems();
+                self.insert_resource(render_context)
+                    .insert_resource(canvas_state)
+                    .insert_resource(egui_context)
+                    .insert_resource(app_state)
+                    .insert_resource(FrameContext::new())
+                    .insert_resource(WindowResource(window));
+
+                self.run_update_systems();
+            }
         }
     }
 
@@ -231,10 +246,33 @@ impl ApplicationHandler<CustomEvent> for App {
                     canvas_ctx.update_brush_color(&render_ctx, color.to_rgba_array());
                 }
             }
-            // this is useful for syncing UI with tools eg. UI needs to show a larger brush pointer when zoomed in
             CustomEvent::_UiUpdate => {}
-            CustomEvent::CanvasCreated { state } => {
-                self.insert_resource(*state);
+            CustomEvent::CanvasCreated {
+                render_context,
+                window,
+            } => {
+                #[allow(unused_mut)]
+                let mut window_size = window.inner_size();
+                // Use the same size override as RenderContext
+                #[cfg(target_arch = "wasm32")]
+                {
+                    window_size.width = WINDOW_SIZE.0;
+                    window_size.height = WINDOW_SIZE.1;
+                }
+
+                let canvas_ctx =
+                    CanvasContext::new(&render_context, (window_size.width, window_size.height));
+                let egui_ctx = EguiContext::new(window.clone(), &render_context);
+                let app_state = State::new();
+
+                self.insert_resource(*render_context)
+                    .insert_resource(canvas_ctx)
+                    .insert_resource(egui_ctx)
+                    .insert_resource(app_state)
+                    .insert_resource(FrameContext::new())
+                    .insert_resource(WindowResource(window));
+
+                self.run_update_systems();
             }
         }
 

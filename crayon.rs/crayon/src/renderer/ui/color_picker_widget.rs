@@ -1,6 +1,6 @@
 use crate::{
     app::App, event_sender::EventSender, events::ControllerEvent, prelude::BrushColor,
-    resource::ResourceContext, state::State, systems::ui::drawable::Drawable,
+    renderer::ui::drawable::Drawable, resource::ResourceContext, state::State,
 };
 
 pub struct ColorPickerWidget;

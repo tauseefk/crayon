@@ -1,6 +1,6 @@
 use crate::{
-    app::App, resource::ResourceContext, resources::frame_time::FrameTime,
-    systems::ui::drawable::Drawable,
+    app::App, renderer::ui::drawable::Drawable, resource::ResourceContext,
+    resources::frame_time::FrameTime,
 };
 
 pub struct FpsWidget;

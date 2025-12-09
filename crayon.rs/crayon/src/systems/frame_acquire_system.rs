@@ -5,8 +5,8 @@ use crate::{
     system::System,
 };
 
-/// Acquires the surface texture at the start of each frame.
-/// Runs in PreUpdate schedule.
+/// Acquires surface texture at the start of each frame.
+/// This should run before systems that render to screen.
 pub struct FrameAcquireSystem;
 
 impl System for FrameAcquireSystem {
@@ -18,7 +18,6 @@ impl System for FrameAcquireSystem {
             return;
         };
 
-        // Get surface texture
         let Ok(texture) = render_ctx.surface.get_current_texture() else {
             return;
         };
@@ -27,14 +26,12 @@ impl System for FrameAcquireSystem {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        // Create encoder
         let encoder = render_ctx
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Frame Encoder"),
             });
 
-        // Store in separate resources
         frame_ctx.surface_texture = Some(texture);
         frame_ctx.surface_view = Some(view);
         render_ctx.encoder = Some(encoder);

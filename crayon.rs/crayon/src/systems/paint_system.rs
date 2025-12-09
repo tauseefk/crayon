@@ -6,6 +6,7 @@ use crate::{
     system::System,
 };
 
+/// Paints queued brush points to render texture.
 pub struct PaintSystem;
 
 impl System for PaintSystem {
@@ -16,11 +17,13 @@ impl System for PaintSystem {
         let Some(mut canvas_ctx) = app.write::<CanvasContext>() else {
             return;
         };
-        let Some(mut queue) = app.write::<BrushPointQueue>() else {
+        let Some(mut brush_point_queue) = app.write::<BrushPointQueue>() else {
             return;
         };
 
-        while let Some(point_data) = queue.read() {
+        // Renders each point to a texture, and then swaps the textures.
+        // Submits once per point.
+        while let Some(point_data) = brush_point_queue.read() {
             canvas_ctx.update_paint_buffer(&render_ctx, &point_data.dot, &point_data.camera);
 
             let (read_bind_group, write_texture_view) = if canvas_ctx.is_rendering_to_a {

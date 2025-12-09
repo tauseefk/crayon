@@ -5,6 +5,7 @@ use winit::window::Window;
 use crate::renderer::render_context::RenderContext;
 use crate::resource::Resource;
 
+/// egui context excapsulation that's useful for rendering the UI.
 pub struct EguiContext {
     pub egui_ctx: egui::Context,
     pub egui_state: egui_winit::State,

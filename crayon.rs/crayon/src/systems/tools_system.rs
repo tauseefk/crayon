@@ -2,13 +2,13 @@ use crate::app::{App, WindowResource};
 use crate::renderer::egui_context::EguiContext;
 use crate::renderer::frame_context::FrameContext;
 use crate::renderer::render_context::RenderContext;
+use crate::renderer::ui::color_picker_widget::ColorPickerWidget;
+use crate::renderer::ui::drawable::Drawable;
+use crate::renderer::ui::fps_widget::FpsWidget;
 use crate::resource::ResourceContext;
 use crate::system::System;
-use crate::systems::ui::drawable::Drawable;
 
-use super::{ColorPickerWidget, FpsWidget};
-
-/// Renders UI widgets using egui.
+/// Renders Tools UI
 pub struct ToolsSystem {
     tools: [Box<dyn Drawable>; 2],
 }
@@ -26,18 +26,18 @@ impl ToolsSystem {
 
 impl System for ToolsSystem {
     fn run(&self, app: &App) {
-        let mut egui_ctx_res = app
-            .write::<EguiContext>()
-            .expect("EguiContext resource not found");
-        let mut render_ctx_res = app
-            .write::<RenderContext>()
-            .expect("RenderContext resource not found");
-        let frame_ctx_res = app
-            .read::<FrameContext>()
-            .expect("FrameContext resource not found");
-        let window_res = app
-            .read::<WindowResource>()
-            .expect("WindowResource resource not found");
+        let Some(mut egui_ctx_res) = app.write::<EguiContext>() else {
+            return;
+        };
+        let Some(mut render_ctx_res) = app.write::<RenderContext>() else {
+            return;
+        };
+        let Some(frame_ctx_res) = app.read::<FrameContext>() else {
+            return;
+        };
+        let Some(window_res) = app.write::<WindowResource>() else {
+            return;
+        };
 
         let raw_input = egui_ctx_res.egui_state.take_egui_input(&window_res.0);
 
@@ -103,7 +103,7 @@ impl System for ToolsSystem {
                     view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        // Load instead of Clear to preserve canvas rendering
+                        // draw on top of existing content
                         load: wgpu::LoadOp::Load,
                         store: wgpu::StoreOp::Store,
                     },

@@ -6,7 +6,7 @@ use crate::{
 };
 
 /// Presents the frame and cleans up.
-/// Runs in PostUpdate schedule.
+/// This should run at the end of each frame after systems that render to screen.
 pub struct FramePresentSystem;
 
 impl System for FramePresentSystem {
@@ -18,17 +18,14 @@ impl System for FramePresentSystem {
             return;
         };
 
-        // Submit the encoder
         if let Some(encoder) = render_ctx.encoder.take() {
             render_ctx.queue.submit(std::iter::once(encoder.finish()));
         }
 
-        // Present the surface texture
         if let Some(texture) = frame_ctx.surface_texture.take() {
             texture.present();
         }
 
-        // Clear the view
         frame_ctx.surface_view = None;
     }
 }

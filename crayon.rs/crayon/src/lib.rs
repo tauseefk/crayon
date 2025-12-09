@@ -26,7 +26,6 @@ mod prelude {
     pub use batteries::prelude::*;
     pub use cgmath::{EuclideanSpace, Point2};
 
-    pub use wgpu::MemoryHints;
     pub use wgpu::util::DeviceExt;
     pub use winit::event_loop::EventLoopProxy;
     pub use winit::{
@@ -49,7 +48,6 @@ mod prelude {
     pub use crate::resource::*;
     pub use crate::state::*;
     pub use crate::system::*;
-    pub use crate::texture::*;
     pub use crate::utils::*;
 }
 
@@ -60,7 +58,7 @@ use crate::systems::frame_acquire_system::FrameAcquireSystem;
 use crate::systems::frame_present_system::FramePresentSystem;
 use crate::systems::frame_time_update::FrameTimeUpdateSystem;
 use crate::systems::paint_system::PaintSystem;
-use crate::systems::ui::ToolsSystem;
+use crate::systems::tools_system::ToolsSystem;
 use prelude::*;
 
 pub fn run() -> anyhow::Result<()> {

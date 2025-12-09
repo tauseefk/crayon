@@ -21,7 +21,6 @@ impl System for CanvasRenderSystem {
             return;
         };
 
-        // Get view from FrameContext (immutable) and encoder from RenderContext (mutable)
         let Some(view) = frame_ctx.surface_view.as_ref() else {
             return;
         };
@@ -29,7 +28,6 @@ impl System for CanvasRenderSystem {
             return;
         };
 
-        // Render canvas to surface
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Canvas Display Pass"),

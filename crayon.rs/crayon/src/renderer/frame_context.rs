@@ -2,6 +2,7 @@ use wgpu::SurfaceTexture;
 
 use crate::resource::Resource;
 
+/// Frame local resources for rendering.
 pub struct FrameContext {
     pub surface_texture: Option<SurfaceTexture>,
     pub surface_view: Option<wgpu::TextureView>,

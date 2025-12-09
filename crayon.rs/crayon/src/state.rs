@@ -1,5 +1,6 @@
 use crate::prelude::*;
 
+/// Entire app's state.
 pub struct State {
     pub camera: Camera2D,
     pub editor: EditorState,

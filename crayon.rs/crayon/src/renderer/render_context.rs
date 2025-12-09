@@ -5,6 +5,7 @@ use winit::window::Window;
 
 use crate::resource::Resource;
 
+/// Frame independent resources for rendering.
 pub struct RenderContext {
     pub surface: Surface<'static>,
     pub device: Device,
@@ -15,7 +16,18 @@ pub struct RenderContext {
 
 impl RenderContext {
     pub async fn new(window: Arc<Window>) -> Self {
-        let size = window.inner_size();
+        #[allow(unused_mut)]
+        let mut size = window.inner_size();
+
+        // window resizing events on the browser can cause problems,
+        // so override with default size
+        #[cfg(target_arch = "wasm32")]
+        {
+            use crate::prelude::WINDOW_SIZE;
+
+            size.width = WINDOW_SIZE.0;
+            size.height = WINDOW_SIZE.1;
+        }
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::PRIMARY,
             ..Default::default()
@@ -78,6 +90,7 @@ impl RenderContext {
         if new_size.width > 0 && new_size.height > 0 {
             self.config.width = new_size.width;
             self.config.height = new_size.height;
+
             self.surface.configure(&self.device, &self.config);
         }
     }
