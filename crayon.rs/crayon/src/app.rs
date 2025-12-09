@@ -135,7 +135,9 @@ impl ApplicationHandler<CustomEvent> for App {
             {
                 let proxy = self.event_loop_proxy.clone();
                 wasm_bindgen_futures::spawn_local(async move {
-                    let render_context = RenderContext::new(window.clone()).await;
+                    let render_context = RenderContext::new(window.clone())
+                        .await
+                        .expect("Unable to create canvas!!!");
                     let _ = proxy.send_event(CustomEvent::CanvasCreated {
                         render_context: Box::new(render_context),
                         window: window.clone(),
@@ -145,7 +147,8 @@ impl ApplicationHandler<CustomEvent> for App {
 
             #[cfg(not(target_arch = "wasm32"))]
             {
-                let render_context = pollster::block_on(RenderContext::new(window.clone()));
+                let render_context = pollster::block_on(RenderContext::new(window.clone()))
+                    .expect("Unable to create canvas!!!");
                 let window_size = window.inner_size();
                 let canvas_state =
                     CanvasContext::new(&render_context, (window_size.width, window_size.height));

@@ -10,10 +10,11 @@ pub struct CRTexture {
 impl CRTexture {
     pub fn get_render_texture_format() -> wgpu::TextureFormat {
         #[cfg(target_arch = "wasm32")]
-        return wgpu::TextureFormat::Rgba8UnormSrgb;
-
+        let texture_format = wgpu::TextureFormat::Rgba8UnormSrgb;
         #[cfg(not(target_arch = "wasm32"))]
-        return wgpu::TextureFormat::Bgra8UnormSrgb;
+        let texture_format = wgpu::TextureFormat::Bgra8UnormSrgb;
+
+        texture_format
     }
 
     pub fn create_render_texture(

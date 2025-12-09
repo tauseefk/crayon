@@ -15,7 +15,7 @@ pub struct RenderContext {
 }
 
 impl RenderContext {
-    pub async fn new(window: Arc<Window>) -> Self {
+    pub async fn new(window: Arc<Window>) -> anyhow::Result<Self> {
         #[allow(unused_mut)]
         let mut size = window.inner_size();
 
@@ -33,7 +33,7 @@ impl RenderContext {
             ..Default::default()
         });
 
-        let surface = instance.create_surface(window).unwrap();
+        let surface = instance.create_surface(window)?;
 
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -41,22 +41,25 @@ impl RenderContext {
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
             })
-            .await
-            .unwrap();
+            .await?;
 
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
                 label: None,
                 required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::default(),
+                required_limits: if cfg!(target_arch = "wasm32") {
+                    wgpu::Limits::downlevel_webgl2_defaults()
+                } else {
+                    wgpu::Limits::defaults()
+                },
                 memory_hints: Default::default(),
-                experimental_features: Default::default(),
                 trace: Default::default(),
+                ..Default::default()
             })
-            .await
-            .unwrap();
+            .await?;
 
         let surface_caps = surface.get_capabilities(&adapter);
+
         let surface_format = surface_caps
             .formats
             .iter()
@@ -77,13 +80,13 @@ impl RenderContext {
 
         surface.configure(&device, &config);
 
-        Self {
+        Ok(Self {
             surface,
             device,
             queue,
             config,
             encoder: None,
-        }
+        })
     }
 
     pub fn reconfigure(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
