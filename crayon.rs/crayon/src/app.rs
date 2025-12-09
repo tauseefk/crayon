@@ -27,6 +27,7 @@ pub struct App {
     pre_update_systems: Vec<Box<dyn System>>,
     update_systems: Vec<Box<dyn System>>,
     post_update_systems: Vec<Box<dyn System>>,
+    #[cfg(target_arch = "wasm32")]
     event_loop_proxy: EventLoopProxy<CustomEvent>,
 }
 
@@ -40,10 +41,10 @@ impl App {
             pre_update_systems: vec![],
             update_systems: vec![],
             post_update_systems: vec![],
+            #[cfg(target_arch = "wasm32")]
             event_loop_proxy: event_loop_proxy.clone(),
         };
 
-        // Store EventSender as a resource for UI widgets
         app.insert_resource(event_sender.clone());
         app.insert_resource(InputSystem::new(event_sender));
 
@@ -57,17 +58,14 @@ impl App {
     }
 
     fn run_update_systems(&self) {
-        // Run pre-update systems first
         for system in &self.pre_update_systems {
             system.run(self);
         }
 
-        // Run main update systems
         for system in &self.update_systems {
             system.run(self);
         }
 
-        // Run post-update systems last
         for system in &self.post_update_systems {
             system.run(self);
         }
@@ -248,7 +246,6 @@ impl ApplicationHandler<CustomEvent> for App {
                     canvas_ctx.update_brush_color(&render_ctx, color.to_rgba_array());
                 }
             }
-            // this is useful for syncing UI with tools eg. UI needs to show a larger brush pointer when zoomed in
             CustomEvent::_UiUpdate => {}
             CustomEvent::CanvasCreated {
                 render_context,
@@ -256,7 +253,6 @@ impl ApplicationHandler<CustomEvent> for App {
             } => {
                 #[allow(unused_mut)]
                 let mut window_size = window.inner_size();
-
                 // Use the same size override as RenderContext
                 #[cfg(target_arch = "wasm32")]
                 {
@@ -295,10 +291,7 @@ impl ApplicationHandler<CustomEvent> for App {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => {
                 if let Some(mut render_ctx) = self.write::<RenderContext>() {
-                    render_ctx.reconfigure(winit::dpi::PhysicalSize {
-                        width: size.width.min(WINDOW_SIZE.0),
-                        height: size.height.min(WINDOW_SIZE.1),
-                    });
+                    render_ctx.reconfigure(size);
                 }
             }
             WindowEvent::RedrawRequested => {

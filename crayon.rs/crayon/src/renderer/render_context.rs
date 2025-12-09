@@ -74,9 +74,6 @@ impl RenderContext {
             desired_maximum_frame_latency: 2,
         };
 
-        #[cfg(target_arch = "wasm32")]
-        log::info!("RenderContext surface config: {}x{}", config.width, config.height);
-
         surface.configure(&device, &config);
 
         Self {
@@ -89,15 +86,9 @@ impl RenderContext {
     }
 
     pub fn reconfigure(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
-        #[cfg(target_arch = "wasm32")]
-        log::info!("reconfigure called with size: {:?}", new_size);
-
         if new_size.width > 0 && new_size.height > 0 {
             self.config.width = new_size.width;
             self.config.height = new_size.height;
-
-            #[cfg(target_arch = "wasm32")]
-            log::info!("reconfigure setting surface to: {}x{}", self.config.width, self.config.height);
 
             self.surface.configure(&self.device, &self.config);
         }

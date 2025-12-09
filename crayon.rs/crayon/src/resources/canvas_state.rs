@@ -3,23 +3,18 @@ use crate::renderer::render_context::RenderContext;
 use crate::resource::Resource;
 use crate::texture::CRTexture;
 
-/// Holds all GPU resources needed for canvas rendering
-/// (camera pipeline for displaying the canvas texture)
 pub struct CanvasContext {
     pub render_texture_a: CRTexture,
     pub render_texture_b: CRTexture,
     pub is_rendering_to_a: bool,
 
-    // Paint pipeline resources
     pub paint_fragment_uniform: BrushFragmentUniform,
     pub paint_fragment_uniform_buffer: wgpu::Buffer,
     pub paint_uniform_bind_group: wgpu::BindGroup,
-    // Paint pipeline fields
     pub paint_fragment_bind_group_a: wgpu::BindGroup,
     pub paint_fragment_bind_group_b: wgpu::BindGroup,
     pub paint_pipeline: wgpu::RenderPipeline,
 
-    // Camera pipeline resources (for displaying canvas to screen)
     pub camera_pipeline: wgpu::RenderPipeline,
     pub camera_vertex_buffer: wgpu::Buffer,
     pub camera_index_buffer: wgpu::Buffer,
@@ -34,27 +29,18 @@ pub struct CanvasContext {
 
 impl CanvasContext {
     pub fn new(render_ctx: &RenderContext, window_size: (u32, u32)) -> Self {
-        #[cfg(target_arch = "wasm32")]
-        log::info!(
-            "CanvasContext::new called with window_size: {:?}",
-            window_size
-        );
-
         let device = &render_ctx.device;
 
-        // Create ping-pong textures for painting
         let render_texture_a =
             CRTexture::create_render_texture(device, window_size, "Render Texture A (ping)");
 
         let render_texture_b =
             CRTexture::create_render_texture(device, window_size, "Render Texture B (pong)");
 
-        // Camera uniform for view/projection matrix
         let mut camera_uniform = CameraUniform::new();
         let camera = Camera2D::new();
         camera_uniform.update_view_projection(&camera);
 
-        // Fragment bind group layout (for canvas texture sampling)
         let camera_fragment_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
@@ -78,7 +64,6 @@ impl CanvasContext {
                 label: Some("Camera Fragment Bind Group Layout"),
             });
 
-        // Bind groups for each ping-pong texture
         let camera_fragment_bind_group_a = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &camera_fragment_bind_group_layout,
             entries: &[
@@ -109,7 +94,6 @@ impl CanvasContext {
             label: Some("Camera Fragment Bind Group B"),
         });
 
-        // Vertex uniform buffer (for camera transform)
         let camera_vertex_uniform_buffer =
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Camera Vertex Uniform Buffer"),
@@ -141,7 +125,6 @@ impl CanvasContext {
             label: Some("Camera Vertex Bind Group"),
         });
 
-        // Vertex and index buffers (full-screen quad)
         let camera_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera Vertex Buffer"),
             contents: bytemuck::cast_slice(DISPLAY_VERTICES),
@@ -154,7 +137,6 @@ impl CanvasContext {
             usage: wgpu::BufferUsages::INDEX,
         });
 
-        // Camera shader and pipeline
         let camera_shader =
             device.create_shader_module(wgpu::include_wgsl!("../renderer/shaders/camera.wgsl"));
 
