@@ -67,12 +67,17 @@ impl CameraUniform {
     }
 }
 
+/// This encapsulates a transformation based on pointer events.
+/// Scale is relative, panning should follow the pointer.
 #[derive(Default)]
 pub struct CameraTransform {
     pub scale_delta: Option<f32>,
     pub translation: Option<cgmath::Point2<f32>>,
 }
 
+/// Pretend orthographic camera for rendering the entire canvas.
+/// Enables the zooming and panning.
+#[derive(Clone, Copy)]
 pub struct Camera2D {
     /// remains the same in both axes
     scale: f32,
@@ -89,6 +94,7 @@ impl Camera2D {
         }
     }
 
+    /// Update the camera based on a transformation.
     pub fn update(&mut self, transform: &CameraTransform) {
         let CameraTransform {
             scale_delta,
@@ -102,10 +108,13 @@ impl Camera2D {
         }
     }
 
-    pub fn update_aspect_ratio(&mut self, width: f32, height: f32) {
+    /// Updates the aspect ratio, useful when rendering a non-square canvaas.
+    pub fn _update_aspect_ratio(&mut self, width: f32, height: f32) {
         self.aspect_ratio = width / height;
     }
 
+    /// Builds the transformation matrix based on the scale and translation.
+    /// translate -> scale
     pub fn build_2d_transform_matrix(&self) -> cgmath::Matrix4<f32> {
         let scale_matrix =
             cgmath::Matrix4::from_nonuniform_scale(self.scale, self.scale * self.aspect_ratio, 1.0);
@@ -120,6 +129,8 @@ impl Camera2D {
         translation_matrix * scale_matrix
     }
 
+    /// Builds the inverse transformation matrix based on the scale and translation.
+    /// scale -> translate
     pub fn build_2d_inverse_transform_matrix(&self) -> cgmath::Matrix4<f32> {
         let scale_matrix = cgmath::Matrix4::from_nonuniform_scale(
             1.0 / self.scale,

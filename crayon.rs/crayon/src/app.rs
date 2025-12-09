@@ -1,138 +1,224 @@
-use crate::prelude::*;
+use crate::{
+    prelude::*,
+    renderer::{
+        egui_context::EguiContext, frame_context::FrameContext, render_context::RenderContext,
+    },
+    resources::{
+        brush_point_queue::BrushPointQueue, canvas_state::CanvasContext, input_system::InputSystem,
+    },
+};
 
 #[cfg(not(target_arch = "wasm32"))]
-use std::time::Instant;
-#[cfg(target_arch = "wasm32")]
-use web_time::Instant;
+use std::thread::sleep;
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Duration;
+use std::{
+    any::{Any, TypeId},
+    collections::HashMap,
+    sync::RwLock,
+};
+
+pub struct WindowResource(pub Arc<winit::window::Window>);
+impl Resource for WindowResource {}
 
 pub struct App {
-    brush_controller: BrushController,
-    camera_controller: CameraController,
-    last_render: Instant,
-    proxy: EventLoopProxy<CustomEvent>,
-    /// Without `window` being available at initalization
-    /// it's not possible to get a handle to the GPU device
-    /// `State` -> `RendererState` rely on the device being available
-    state: Option<State>,
-    /// On `web`, `window` is not available at initalization
-    window: Option<Arc<winit::window::Window>>,
+    resources: HashMap<TypeId, Arc<RwLock<dyn Any + Send + Sync>>>,
+    startup_systems: Vec<Box<dyn System>>,
+    pre_update_systems: Vec<Box<dyn System>>,
+    update_systems: Vec<Box<dyn System>>,
+    post_update_systems: Vec<Box<dyn System>>,
+    #[cfg(target_arch = "wasm32")]
+    event_loop_proxy: EventLoopProxy<CustomEvent>,
 }
 
 impl App {
     pub fn new(event_loop_proxy: EventLoopProxy<CustomEvent>) -> Self {
         let event_sender = EventSender::new(event_loop_proxy.clone());
-        Self {
-            brush_controller: BrushController::new(event_sender.clone()),
-            camera_controller: CameraController::new(event_sender),
-            last_render: Instant::now(),
-            proxy: event_loop_proxy,
-            state: None,
-            window: None,
+
+        let mut app = Self {
+            resources: HashMap::new(),
+            startup_systems: vec![],
+            pre_update_systems: vec![],
+            update_systems: vec![],
+            post_update_systems: vec![],
+            #[cfg(target_arch = "wasm32")]
+            event_loop_proxy: event_loop_proxy.clone(),
+        };
+
+        app.insert_resource(event_sender.clone());
+        app.insert_resource(InputSystem::new(event_sender));
+
+        app
+    }
+
+    fn _run_startup_systems(&self) {
+        for system in &self.startup_systems {
+            system.run(self);
         }
+    }
+
+    fn run_update_systems(&self) {
+        for system in &self.pre_update_systems {
+            system.run(self);
+        }
+
+        for system in &self.update_systems {
+            system.run(self);
+        }
+
+        for system in &self.post_update_systems {
+            system.run(self);
+        }
+    }
+}
+
+impl ResourceContext for App {
+    fn read<T: Resource>(&self) -> Option<Res<'_, T>> {
+        let guard = self.resources.get(&TypeId::of::<T>())?.read().ok()?;
+
+        Some(Res::new(guard))
+    }
+
+    fn write<T: Resource>(&self) -> Option<ResMut<'_, T>> {
+        let guard = self.resources.get(&TypeId::of::<T>())?.write().ok()?;
+
+        Some(ResMut::new(guard))
+    }
+
+    fn insert_resource<T: Resource>(&mut self, resource: T) -> &mut Self {
+        self.resources
+            .insert(TypeId::of::<T>(), Arc::new(RwLock::new(resource)));
+
+        self
+    }
+}
+
+impl SystemRegistry for App {
+    fn add_system(&mut self, schedule: Schedule, system: impl System + 'static) -> &mut Self {
+        match schedule {
+            Schedule::Startup => self.startup_systems.push(Box::new(system)),
+            Schedule::PreUpdate => self.pre_update_systems.push(Box::new(system)),
+            Schedule::Update => self.update_systems.push(Box::new(system)),
+            Schedule::PostUpdate => self.post_update_systems.push(Box::new(system)),
+        }
+
+        self
     }
 }
 
 impl ApplicationHandler<CustomEvent> for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        #[allow(unused_mut)]
-        let mut window_attributes = Window::default_attributes()
-            .with_title("Crayon")
-            .with_inner_size(LogicalSize::new(WINDOW_SIZE.0, WINDOW_SIZE.1));
+        if self.read::<WindowResource>().is_none() {
+            // updated by wasm window attributes
+            #[allow(unused_mut)]
+            let mut window_attributes = Window::default_attributes()
+                .with_title("Crayon")
+                .with_inner_size(LogicalSize::new(WINDOW_SIZE.0, WINDOW_SIZE.1));
 
-        #[cfg(target_arch = "wasm32")]
-        {
-            use wasm_bindgen::JsCast;
-            use winit::platform::web::WindowAttributesExtWebSys;
+            #[cfg(target_arch = "wasm32")]
+            {
+                use wasm_bindgen::JsCast;
+                use winit::platform::web::WindowAttributesExtWebSys;
 
-            const CANVAS_ID: &str = "canvas";
+                const CANVAS_ID: &str = "canvas";
 
-            let window = wgpu::web_sys::window().unwrap_throw();
-            let document = window.document().unwrap_throw();
-            let canvas = document.get_element_by_id(CANVAS_ID).unwrap_throw();
-            let html_canvas_element = canvas.unchecked_into();
-            window_attributes = window_attributes.with_canvas(Some(html_canvas_element));
-        }
-        let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
-        self.window = Some(window.clone());
+                let window = wgpu::web_sys::window().unwrap_throw();
+                let document = window.document().unwrap_throw();
+                let canvas = document.get_element_by_id(CANVAS_ID).unwrap_throw();
+                let html_canvas_element = canvas.unchecked_into();
+                window_attributes = window_attributes.with_canvas(Some(html_canvas_element));
+            }
 
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            if let (proxy, Some(window)) = (self.proxy.clone(), self.window.clone()) {
-                let event_sender = EventSender::new(proxy);
-                let state =
-                    futures::executor::block_on(State::new(window.clone(), event_sender)).unwrap();
+            let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
 
-                self.state = Some(state);
+            #[cfg(target_arch = "wasm32")]
+            {
+                let proxy = self.event_loop_proxy.clone();
+                wasm_bindgen_futures::spawn_local(async move {
+                    let render_context = RenderContext::new(window.clone()).await;
+                    let _ = proxy.send_event(CustomEvent::CanvasCreated {
+                        render_context: Box::new(render_context),
+                        window: window.clone(),
+                    });
+                });
+            }
+
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let render_context = pollster::block_on(RenderContext::new(window.clone()));
+                let window_size = window.inner_size();
+                let canvas_state =
+                    CanvasContext::new(&render_context, (window_size.width, window_size.height));
+                let egui_context = EguiContext::new(window.clone(), &render_context);
+                let app_state = State::new();
+
+                self.insert_resource(render_context)
+                    .insert_resource(canvas_state)
+                    .insert_resource(egui_context)
+                    .insert_resource(app_state)
+                    .insert_resource(FrameContext::new())
+                    .insert_resource(WindowResource(window));
+
+                self.run_update_systems();
             }
         }
-
-        #[cfg(target_arch = "wasm32")]
-        {
-            let window_for_wasm = window.clone();
-            let proxy = self.proxy.clone();
-            // Run the future asynchronously and use the
-            // proxy to send the results to the event loop
-            wasm_bindgen_futures::spawn_local(async move {
-                let event_sender = EventSender::new(proxy.clone());
-                let state = State::new(window_for_wasm, event_sender)
-                    .await
-                    .expect("Unable to create canvas!!!");
-                assert!(
-                    proxy
-                        .send_event(CustomEvent::CanvasCreated {
-                            state: Box::new(state)
-                        })
-                        .is_ok()
-                );
-            });
-        }
-
-        window.request_redraw();
     }
 
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: CustomEvent) {
         match event {
             CustomEvent::ClearCanvas => {
-                if let Some(state) = &mut self.state {
-                    state.clear_canvas();
-                    if let Some(window) = &self.window {
-                        window.request_redraw();
-                    }
+                if let (Some(canvas_ctx), Some(render_ctx)) = (
+                    &mut self.write::<CanvasContext>(),
+                    self.read::<RenderContext>(),
+                ) {
+                    canvas_ctx.clear_render_texture(&render_ctx);
                 }
             }
+            // TODO: cleanup the transformation code
             CustomEvent::CameraMove { position } => {
-                if let Some(window) = &self.window {
-                    let window_size = window.inner_size();
-
-                    if let Some(state) = &mut self.state {
-                        let world_translation = screen_to_world_position(
-                            position,
-                            #[allow(clippy::cast_precision_loss)]
-                            (window_size.width as f32, window_size.height as f32),
-                        );
-
-                        state.update_camera(Some(CameraTransform {
-                            translation: Some(clamp::clamp_point(world_translation)),
-                            ..Default::default()
-                        }));
-                        window.request_redraw();
-                    }
+                if let (Some(window_res), Some(canvas_ctx), Some(render_ctx), Some(mut state)) = (
+                    self.read::<WindowResource>(),
+                    &mut self.write::<CanvasContext>(),
+                    self.read::<RenderContext>(),
+                    self.write::<State>(),
+                ) {
+                    let window_size = window_res.0.inner_size();
+                    let world_translation = screen_to_world_position(
+                        position,
+                        #[allow(clippy::cast_precision_loss)]
+                        (window_size.width as f32, window_size.height as f32),
+                    );
+                    let transform = CameraTransform {
+                        translation: Some(clamp::clamp_point(world_translation)),
+                        ..Default::default()
+                    };
+                    state.camera.update(&transform);
+                    canvas_ctx.update_camera_buffer(&render_ctx, &state.camera);
                 }
             }
+            // TODO: cleanup the transformation code
             CustomEvent::CameraZoom { delta } => {
-                if let Some(state) = &mut self.state {
-                    state.update_camera(Some(CameraTransform {
+                if let (Some(canvas_ctx), Some(render_ctx), Some(mut state)) = (
+                    &mut self.write::<CanvasContext>(),
+                    self.read::<RenderContext>(),
+                    self.write::<State>(),
+                ) {
+                    let transform = CameraTransform {
                         scale_delta: Some(delta),
                         ..Default::default()
-                    }));
-                    if let Some(window) = &self.window {
-                        window.request_redraw();
-                    }
+                    };
+                    state.camera.update(&transform);
+                    canvas_ctx.update_camera_buffer(&render_ctx, &state.camera);
                 }
             }
+            // TODO: cleanup the transformation code
             CustomEvent::BrushPoint { dot } => {
-                if let Some(window) = &self.window {
-                    let window_size = window.inner_size();
+                if let (Some(window), Some(state), Some(mut queue)) = (
+                    self.read::<WindowResource>(),
+                    self.read::<State>(),
+                    self.write::<BrushPointQueue>(),
+                ) {
+                    let window_size = window.0.inner_size();
 
                     let brush_position = world_to_ndc(
                         dot.position,
@@ -141,32 +227,57 @@ impl ApplicationHandler<CustomEvent> for App {
                     );
                     let clamped_position = clamp::clamp_point(brush_position);
 
-                    if let Some(state) = &mut self.state {
-                        state.update_paint(&Dot2D {
+                    queue.write(
+                        Dot2D {
                             position: clamped_position,
                             radius: dot.radius,
-                        });
-                        state.paint_to_texture();
-                        window.request_redraw();
-                    }
+                        },
+                        state.camera.clone(),
+                    );
                 }
             }
             CustomEvent::UpdateBrushColor(color) => {
-                if let Some(state) = &mut self.state {
-                    state.update_brush_color(color);
-                    if let Some(window) = &self.window {
-                        window.request_redraw();
-                    }
+                if let (Some(mut state), Some(mut canvas_ctx), Some(render_ctx)) = (
+                    self.write::<State>(),
+                    self.write::<CanvasContext>(),
+                    self.read::<RenderContext>(),
+                ) {
+                    state.editor.update_brush_color(color);
+                    canvas_ctx.update_brush_color(&render_ctx, color.to_rgba_array());
                 }
             }
-            // this is useful for syncing UI with tools eg. UI needs to show a larger brush pointer when zoomed in
             CustomEvent::_UiUpdate => {}
-            CustomEvent::CanvasCreated { state } => {
-                self.state = Some(*state);
-                if let Some(window) = &self.window {
-                    window.request_redraw();
+            CustomEvent::CanvasCreated {
+                render_context,
+                window,
+            } => {
+                #[allow(unused_mut)]
+                let mut window_size = window.inner_size();
+                // Use the same size override as RenderContext
+                #[cfg(target_arch = "wasm32")]
+                {
+                    window_size.width = WINDOW_SIZE.0;
+                    window_size.height = WINDOW_SIZE.1;
                 }
+
+                let canvas_ctx =
+                    CanvasContext::new(&render_context, (window_size.width, window_size.height));
+                let egui_ctx = EguiContext::new(window.clone(), &render_context);
+                let app_state = State::new();
+
+                self.insert_resource(*render_context)
+                    .insert_resource(canvas_ctx)
+                    .insert_resource(egui_ctx)
+                    .insert_resource(app_state)
+                    .insert_resource(FrameContext::new())
+                    .insert_resource(WindowResource(window));
+
+                self.run_update_systems();
             }
+        }
+
+        if let Some(window) = &self.read::<WindowResource>() {
+            window.0.request_redraw();
         }
     }
 
@@ -176,45 +287,37 @@ impl ApplicationHandler<CustomEvent> for App {
         _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
-        let Some(app_state) = &mut self.state else {
-            // if there's no app_state, the window might not have been initialized
-            // no need to start processing events yet
-            return;
-        };
-
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
-            WindowEvent::Resized(size) => app_state.resize(size.width, size.height),
-            WindowEvent::RedrawRequested => {
-                match app_state.render() {
-                    Ok(()) => {}
-                    Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                        // re-configure to the same window size as the one just lost
-                        let size = app_state.get_window_size();
-                        app_state.resize(size.width, size.height);
-                    }
-                    Err(e) => {
-                        log::error!("Unable to render to display {e}");
-                    }
+            WindowEvent::Resized(size) => {
+                if let Some(mut render_ctx) = self.write::<RenderContext>() {
+                    render_ctx.reconfigure(size);
                 }
-
+            }
+            WindowEvent::RedrawRequested => {
+                self.run_update_systems();
                 // Cap framerate
-                let now = Instant::now();
-                if now.duration_since(self.last_render).as_millis() >= 5 {
-                    self.last_render = now;
-                    if let Some(window) = &self.window {
-                        window.request_redraw();
-                    }
+                #[cfg(not(target_arch = "wasm32"))]
+                sleep(Duration::from_millis(5));
+                if let Some(window_res) = self.read::<WindowResource>() {
+                    window_res.0.request_redraw();
                 }
             }
             event => {
-                // Pass events to UI first, return early if consumed
-                if app_state.handle_ui_event(&event) {
-                    return;
+                // Pass events to egui first, before any other processing
+                if let (Some(mut egui_ctx), Some(window)) =
+                    (self.write::<EguiContext>(), self.read::<WindowResource>())
+                {
+                    let event_response = egui_ctx.egui_state.on_window_event(&window.0, &event);
+                    if event_response.consumed {
+                        // Egui consumed the event, don't process further
+                        return;
+                    }
                 }
 
-                self.brush_controller.process_event(&event);
-                self.camera_controller.process_event(&event);
+                if let Some(mut input_system) = self.write::<InputSystem>() {
+                    input_system.process_event(&event);
+                }
 
                 if let WindowEvent::KeyboardInput {
                     event:

@@ -36,8 +36,10 @@ impl From<[u8; 3]> for BrushColor {
     }
 }
 
-pub const COLOR_A: BrushColor = BrushColor::new(128.0 / 255.0, 85.0 / 255.0, 1.0, 1.0);
+pub const DEFAULT_BRUSH_COLOR: BrushColor = BrushColor::new(128.0 / 255.0, 85.0 / 255.0, 1.0, 1.0);
 
+/// State pertinent to the editor and painting systems.
+/// UI may rely on some of this.
 pub struct EditorState {
     pub brush_color: BrushColor,
 }
@@ -45,16 +47,12 @@ pub struct EditorState {
 impl EditorState {
     pub fn new() -> Self {
         Self {
-            brush_color: COLOR_A,
+            brush_color: DEFAULT_BRUSH_COLOR,
         }
     }
 
     pub fn update_brush_color(&mut self, color: BrushColor) {
         self.brush_color = color;
-    }
-
-    pub fn get_brush_color_array(&self) -> [f32; 4] {
-        self.brush_color.to_rgba_array()
     }
 }
 

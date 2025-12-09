@@ -1,4 +1,3 @@
-mod egui_renderer;
-mod renderer;
-
-pub use renderer::CrayonUI;
+pub mod color_picker_widget;
+pub mod drawable;
+pub mod fps_widget;
