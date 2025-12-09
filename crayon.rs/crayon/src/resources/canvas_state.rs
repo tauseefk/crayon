@@ -31,11 +31,19 @@ impl CanvasContext {
     pub fn new(render_ctx: &RenderContext, window_size: (u32, u32)) -> Self {
         let device = &render_ctx.device;
 
-        let render_texture_a =
-            CRTexture::create_render_texture(device, window_size, "Render Texture A (ping)");
+        let render_texture_a = CRTexture::create_render_texture(
+            device,
+            window_size,
+            render_ctx.config.format,
+            "Render Texture A (ping)",
+        );
 
-        let render_texture_b =
-            CRTexture::create_render_texture(device, window_size, "Render Texture B (pong)");
+        let render_texture_b = CRTexture::create_render_texture(
+            device,
+            window_size,
+            render_ctx.config.format,
+            "Render Texture B (pong)",
+        );
 
         let mut camera_uniform = CameraUniform::new();
         let camera = Camera2D::new();
@@ -246,6 +254,12 @@ impl CanvasContext {
             label: Some("Paint Bind Group B"),
         });
 
+        // native backends support srgb, gamma correction is manually applied
+        #[cfg(not(target_arch = "wasm32"))]
+        let paint_shader = device
+            .create_shader_module(wgpu::include_wgsl!("../renderer/shaders/paint_linear.wgsl"));
+
+        #[cfg(target_arch = "wasm32")]
         let paint_shader =
             device.create_shader_module(wgpu::include_wgsl!("../renderer/shaders/paint.wgsl"));
 
@@ -259,7 +273,7 @@ impl CanvasContext {
                 &paint_fragment_bind_group_layout,
             ],
             &paint_shader,
-            CRTexture::get_render_texture_format(),
+            render_ctx.config.format,
             &[DisplayVertex::desc()],
             false,
             "Paint Pipeline",

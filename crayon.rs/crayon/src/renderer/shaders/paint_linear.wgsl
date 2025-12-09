@@ -46,7 +46,9 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let distance = length(brush_offset) / brush_uniform.size;
     let brush_strength = 1.0 - smoothstep(brush_uniform.sharpness, 1.0, distance);
 
-    let final_color = mix(world_color.rgb, brush_uniform.color.rgb, brush_strength * brush_uniform.color.a);
+    let linear_brush_color = pow(brush_uniform.color.rgb, vec3<f32>(2.2));
+    let final_color = mix(world_color.rgb, linear_brush_color, brush_strength * brush_uniform.color.a);
 
     return vec4<f32>(final_color, 1.0);
 }
+
