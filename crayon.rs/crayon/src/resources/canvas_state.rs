@@ -34,6 +34,12 @@ pub struct CanvasContext {
 
 impl CanvasContext {
     pub fn new(render_ctx: &RenderContext, window_size: (u32, u32)) -> Self {
+        #[cfg(target_arch = "wasm32")]
+        log::info!(
+            "CanvasContext::new called with window_size: {:?}",
+            window_size
+        );
+
         let device = &render_ctx.device;
 
         // Create ping-pong textures for painting
@@ -271,7 +277,7 @@ impl CanvasContext {
                 &paint_fragment_bind_group_layout,
             ],
             &paint_shader,
-            render_ctx.config.format,
+            CRTexture::get_render_texture_format(),
             &[DisplayVertex::desc()],
             false,
             "Paint Pipeline",

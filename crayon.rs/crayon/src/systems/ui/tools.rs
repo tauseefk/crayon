@@ -26,18 +26,18 @@ impl ToolsSystem {
 
 impl System for ToolsSystem {
     fn run(&self, app: &App) {
-        let mut egui_ctx_res = app
-            .write::<EguiContext>()
-            .expect("EguiContext resource not found");
-        let mut render_ctx_res = app
-            .write::<RenderContext>()
-            .expect("RenderContext resource not found");
-        let frame_ctx_res = app
-            .read::<FrameContext>()
-            .expect("FrameContext resource not found");
-        let window_res = app
-            .read::<WindowResource>()
-            .expect("WindowResource resource not found");
+        let Some(mut egui_ctx_res) = app.write::<EguiContext>() else {
+            return;
+        };
+        let Some(mut render_ctx_res) = app.write::<RenderContext>() else {
+            return;
+        };
+        let Some(frame_ctx_res) = app.read::<FrameContext>() else {
+            return;
+        };
+        let Some(window_res) = app.write::<WindowResource>() else {
+            return;
+        };
 
         let raw_input = egui_ctx_res.egui_state.take_egui_input(&window_res.0);
 

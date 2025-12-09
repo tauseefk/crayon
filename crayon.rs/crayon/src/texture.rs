@@ -1,3 +1,5 @@
+use wgpu::TextureViewDescriptor;
+
 pub struct CRTexture {
     #[allow(unused)]
     pub texture: wgpu::Texture,
@@ -6,28 +8,40 @@ pub struct CRTexture {
 }
 
 impl CRTexture {
+    pub fn get_render_texture_format() -> wgpu::TextureFormat {
+        #[cfg(target_arch = "wasm32")]
+        {
+            wgpu::TextureFormat::Rgba8UnormSrgb
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            wgpu::TextureFormat::Bgra8UnormSrgb
+        }
+    }
+
     pub fn create_render_texture(
         device: &wgpu::Device,
         dimensions: (u32, u32),
         label: &str,
     ) -> Self {
         #[cfg(target_arch = "wasm32")]
-        let dimensions = (
-            if dimensions.0 == 0 {
-                crate::prelude::WINDOW_SIZE.0
-            } else {
-                dimensions.0.min(crate::prelude::WINDOW_SIZE.0)
-            },
-            if dimensions.1 == 0 {
-                crate::prelude::WINDOW_SIZE.1
-            } else {
-                dimensions.1.min(crate::prelude::WINDOW_SIZE.1)
-            },
-        );
-        #[cfg(target_arch = "wasm32")]
-        let texture_format = wgpu::TextureFormat::Rgba8UnormSrgb;
-        #[cfg(not(target_arch = "wasm32"))]
-        let texture_format = wgpu::TextureFormat::Bgra8UnormSrgb;
+        let dimensions = {
+            log::info!("create_render_texture input dimensions: {:?}", dimensions);
+            let result = (
+                if dimensions.0 == 0 {
+                    crate::prelude::WINDOW_SIZE.0
+                } else {
+                    dimensions.0.min(crate::prelude::WINDOW_SIZE.0)
+                },
+                if dimensions.1 == 0 {
+                    crate::prelude::WINDOW_SIZE.1
+                } else {
+                    dimensions.1.min(crate::prelude::WINDOW_SIZE.1)
+                },
+            );
+            log::info!("create_render_texture final dimensions: {:?}", result);
+            result
+        };
 
         let size = wgpu::Extent3d {
             width: dimensions.0,
@@ -40,7 +54,7 @@ impl CRTexture {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: texture_format,
+            format: Self::get_render_texture_format(),
             usage: wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::COPY_DST
                 | wgpu::TextureUsages::COPY_SRC
@@ -49,8 +63,12 @@ impl CRTexture {
             view_formats: &[],
         });
 
-        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let view = texture.create_view(&TextureViewDescriptor {
+            label: Some(format!("{} View", label).as_str()),
+            ..wgpu::TextureViewDescriptor::default()
+        });
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some(format!("{} Sampler", label).as_str()),
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
