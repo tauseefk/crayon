@@ -1,4 +1,7 @@
-use wgpu::TextureViewDescriptor;
+use wgpu::{TextureFormat, TextureViewDescriptor};
+
+#[cfg(target_arch = "wasm32")]
+use crate::prelude::WINDOW_SIZE;
 
 pub struct CRTexture {
     #[allow(unused)]
@@ -8,20 +11,26 @@ pub struct CRTexture {
 }
 
 impl CRTexture {
-    pub fn get_render_texture_format() -> wgpu::TextureFormat {
-        #[cfg(target_arch = "wasm32")]
-        let texture_format = wgpu::TextureFormat::Rgba8UnormSrgb;
-        #[cfg(not(target_arch = "wasm32"))]
-        let texture_format = wgpu::TextureFormat::Bgra8UnormSrgb;
-
-        texture_format
-    }
-
     pub fn create_render_texture(
         device: &wgpu::Device,
         dimensions: (u32, u32),
+        format: TextureFormat,
         label: &str,
     ) -> Self {
+        #[cfg(target_arch = "wasm32")]
+        let dimensions = (
+            if dimensions.0 == 0 {
+                WINDOW_SIZE.0
+            } else {
+                dimensions.0.min(WINDOW_SIZE.0)
+            },
+            if dimensions.1 == 0 {
+                WINDOW_SIZE.1
+            } else {
+                dimensions.1.min(WINDOW_SIZE.1)
+            },
+        );
+
         let size = wgpu::Extent3d {
             width: dimensions.0,
             height: dimensions.1,
@@ -33,7 +42,7 @@ impl CRTexture {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: Self::get_render_texture_format(),
+            format,
             usage: wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::COPY_DST
                 | wgpu::TextureUsages::COPY_SRC
