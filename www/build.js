@@ -41,9 +41,7 @@ const run = async () => {
 
     // DEV server
     await ctx.serve({
-      cors: {
-        origin: [process.env.LOCAL_NETWORK_ADDR, 'localhost'],
-      },
+      host: '0.0.0.0',
       port: 8009,
       servedir: './dist',
     });

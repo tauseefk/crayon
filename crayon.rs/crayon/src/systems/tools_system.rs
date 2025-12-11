@@ -2,15 +2,17 @@ use crate::app::{App, WindowResource};
 use crate::renderer::egui_context::EguiContext;
 use crate::renderer::frame_context::FrameContext;
 use crate::renderer::render_context::RenderContext;
+use crate::renderer::ui::clear_screen_widget::ClearScreenWidget;
 use crate::renderer::ui::color_picker_widget::ColorPickerWidget;
 use crate::renderer::ui::drawable::Drawable;
 use crate::renderer::ui::fps_widget::FpsWidget;
+use crate::renderer::ui::hello_widget::HelloWidget;
 use crate::resource::ResourceContext;
 use crate::system::System;
 
 /// Renders Tools UI
 pub struct ToolsSystem {
-    tools: [Box<dyn Drawable>; 2],
+    tools: [Box<dyn Drawable>; 4],
 }
 
 impl ToolsSystem {
@@ -19,6 +21,8 @@ impl ToolsSystem {
             tools: [
                 Box::new(FpsWidget::new()),
                 Box::new(ColorPickerWidget::new()),
+                Box::new(ClearScreenWidget::new()),
+                Box::new(HelloWidget::new()),
             ],
         }
     }

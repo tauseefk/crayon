@@ -14,7 +14,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.2.2",
     "dotenv": "^17.2.1",
-    "esbuild": "^0.25.9",
+    "esbuild": "0.24.2",
     "esbuild-plugin-copy": "^2.1.1",
     "esbuild-plugin-wasm": "^1.1.0",
     "nodemon": "^3.1.9",

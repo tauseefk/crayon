@@ -16,6 +16,7 @@ mod systems;
 mod texture;
 mod utils;
 
+// TODO: get rid of the prelude
 mod prelude {
     pub use std::mem;
     pub use std::sync::Arc;
@@ -51,6 +52,7 @@ mod prelude {
     pub use crate::utils::*;
 }
 
+use crate::renderer::ui::hello_widget::HelloResource;
 use crate::resources::brush_point_queue::BrushPointQueue;
 use crate::resources::frame_time::FrameTime;
 use crate::systems::canvas_render_system::CanvasRenderSystem;
@@ -78,6 +80,7 @@ pub fn run() -> anyhow::Result<()> {
 
     app.insert_resource(FrameTime::new());
     app.insert_resource(BrushPointQueue::new());
+    app.insert_resource(HelloResource::new());
 
     app.add_system(Schedule::PreUpdate, FrameAcquireSystem)
         .add_system(Schedule::Update, FrameTimeUpdateSystem)
