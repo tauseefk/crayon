@@ -1,9 +1,8 @@
 ---
-title: RFD Template
+title: System Re-architecture
 author: Tauseef
 status: WIP
-tags: Project, Example Type
-dependent:: [[]]
+tags: Project
 ---
 
 ## Problem
