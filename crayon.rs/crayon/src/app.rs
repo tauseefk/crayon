@@ -292,9 +292,20 @@ impl ApplicationHandler<CustomEvent> for App {
     ) {
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
-            WindowEvent::Resized(size) => {
-                if let Some(mut render_ctx) = self.write::<RenderContext>() {
-                    render_ctx.reconfigure(size);
+            WindowEvent::Resized(new_size) => {
+                if let (Some(mut render_ctx), Some(mut canvas_ctx), Some(mut state)) = (
+                    self.write::<RenderContext>(),
+                    self.write::<CanvasContext>(),
+                    self.write::<State>(),
+                ) {
+                    if new_size.width > 0 && new_size.height > 0 {
+                        state
+                            .camera
+                            .update_aspect_ratio(new_size.width as f32, new_size.height as f32);
+                        // camera buffer needs to be updated after updating the camera
+                        canvas_ctx.update_camera_buffer(&render_ctx, &state.camera);
+                        render_ctx.reconfigure(new_size);
+                    }
                 }
             }
             WindowEvent::RedrawRequested => {

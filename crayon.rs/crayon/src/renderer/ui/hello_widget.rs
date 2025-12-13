@@ -69,8 +69,8 @@ impl Drawable for HelloWidget {
                     .add_sized([40.0, 20.0], egui::Button::new("👋"))
                     .clicked()
                 {
+                    hello_res.point_idx = 0;
                     hello_res.is_animating = true;
-                    event_sender.send(ControllerEvent::ClearCanvas);
                 }
             });
 
