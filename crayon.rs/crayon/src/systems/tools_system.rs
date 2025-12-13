@@ -59,9 +59,8 @@ impl System for ToolsSystem {
             .egui_ctx
             .tessellate(full_output.shapes, full_output.pixels_per_point);
 
-        let size = window_res.0.inner_size();
         let screen_descriptor = egui_wgpu::ScreenDescriptor {
-            size_in_pixels: [size.width, size.height],
+            size_in_pixels: [render_ctx_res.config.width, render_ctx_res.config.height],
             pixels_per_point: full_output.pixels_per_point,
         };
 

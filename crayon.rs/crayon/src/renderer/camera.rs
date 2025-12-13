@@ -90,7 +90,7 @@ impl Camera2D {
         Self {
             scale: DEFAULT_CANVAS_ZOOM,
             translation: cgmath::Point2::origin(),
-            aspect_ratio: 1.0,
+            aspect_ratio: (WINDOW_SIZE.0 as f32) / (WINDOW_SIZE.1 as f32),
         }
     }
 
@@ -109,7 +109,7 @@ impl Camera2D {
     }
 
     /// Updates the aspect ratio, useful when rendering a non-square canvaas.
-    pub fn _update_aspect_ratio(&mut self, width: f32, height: f32) {
+    pub fn update_aspect_ratio(&mut self, width: f32, height: f32) {
         self.aspect_ratio = width / height;
     }
 
