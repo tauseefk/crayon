@@ -2,6 +2,8 @@ use crate::app::{App, WindowResource};
 use crate::renderer::egui_context::EguiContext;
 use crate::renderer::frame_context::FrameContext;
 use crate::renderer::render_context::RenderContext;
+use crate::renderer::ui::brush_preview_widget::BrushPreviewWidget;
+use crate::renderer::ui::brush_size_widget::BrushSizeWidget;
 use crate::renderer::ui::clear_screen_widget::ClearScreenWidget;
 use crate::renderer::ui::color_picker_widget::ColorPickerWidget;
 use crate::renderer::ui::drawable::Drawable;
@@ -12,17 +14,19 @@ use crate::system::System;
 
 /// Renders Tools UI
 pub struct ToolsSystem {
-    tools: [Box<dyn Drawable>; 4],
+    tools: [Box<dyn Drawable>; 6],
 }
 
 impl ToolsSystem {
     pub fn new() -> Self {
         Self {
             tools: [
-                Box::new(FpsWidget::new()),
+                Box::new(BrushSizeWidget::new()),
                 Box::new(ColorPickerWidget::new()),
                 Box::new(ClearScreenWidget::new()),
+                Box::new(FpsWidget::new()),
                 Box::new(HelloWidget::new()),
+                Box::new(BrushPreviewWidget::new()),
             ],
         }
     }

@@ -1,4 +1,4 @@
-pub const DEFAULT_CANVAS_ZOOM: f32 = 0.78;
+pub const DEFAULT_CANVAS_ZOOM: f32 = 0.76;
 
 pub const CLEAR_COLOR: wgpu::Color = if cfg!(debug_assertions) {
     wgpu::Color {

@@ -1,3 +1,5 @@
+use crate::prelude::DEFAULT_BRUSH_SIZE;
+
 /// Generalized color representation for editor state
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BrushColor {
@@ -23,6 +25,15 @@ impl BrushColor {
             (self.b * 255.0) as u8,
         ]
     }
+
+    pub fn to_egui_color(self) -> egui::Color32 {
+        egui::Color32::from_rgba_unmultiplied(
+            (self.r * 255.0) as u8,
+            (self.g * 255.0) as u8,
+            (self.b * 255.0) as u8,
+            (self.a * 255.0) as u8,
+        )
+    }
 }
 
 impl From<[u8; 3]> for BrushColor {
@@ -38,21 +49,30 @@ impl From<[u8; 3]> for BrushColor {
 
 pub const DEFAULT_BRUSH_COLOR: BrushColor = BrushColor::new(128.0 / 255.0, 85.0 / 255.0, 1.0, 1.0);
 
+#[derive(Debug, Clone, Copy)]
+pub struct BrushProperties {
+    pub color: BrushColor,
+    pub size: f32,
+}
+
 /// State pertinent to the editor and painting systems.
 /// UI may rely on some of this.
 pub struct EditorState {
-    pub brush_color: BrushColor,
+    pub brush_properties: BrushProperties,
 }
 
 impl EditorState {
     pub fn new() -> Self {
         Self {
-            brush_color: DEFAULT_BRUSH_COLOR,
+            brush_properties: BrushProperties {
+                color: DEFAULT_BRUSH_COLOR,
+                size: DEFAULT_BRUSH_SIZE,
+            },
         }
     }
 
-    pub fn update_brush_color(&mut self, color: BrushColor) {
-        self.brush_color = color;
+    pub fn update_brush(&mut self, brush_properties: BrushProperties) {
+        self.brush_properties = brush_properties;
     }
 }
 

@@ -94,7 +94,12 @@ impl Camera2D {
         }
     }
 
-    /// Update the camera based on a transformation.
+    /// Returns the current camera scale/zoom level.
+    pub fn scale(&self) -> f32 {
+        self.scale
+    }
+
+    /// Updates the camera based on a transformation.
     pub fn update(&mut self, transform: &CameraTransform) {
         let CameraTransform {
             scale_delta,

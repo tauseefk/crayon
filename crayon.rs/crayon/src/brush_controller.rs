@@ -1,5 +1,7 @@
 use crate::prelude::*;
 
+const BRUSH_STEP_SIZE: f32 = 1.0;
+
 pub struct BrushController {
     event_sender: EventSender,
     is_mouse_down: bool,
@@ -18,13 +20,15 @@ impl BrushController {
             is_dragging: false,
             is_mouse_down: false,
             is_disabled: false,
-            brush_size: BRUSH_SIZE,
+            brush_size: DEFAULT_BRUSH_SIZE,
             brush_position: Point2::origin(),
             point_processor,
         }
     }
 
-    pub fn process_event(&mut self, event: &WindowEvent) {
+    // TODO: threading brush_size isn't the cleanest approach
+    pub fn process_event(&mut self, event: &WindowEvent, brush_size: f32) {
+        self.brush_size = brush_size;
         match event {
             WindowEvent::KeyboardInput { event, .. } => {
                 if event.physical_key == PhysicalKey::Code(KeyCode::SuperLeft)

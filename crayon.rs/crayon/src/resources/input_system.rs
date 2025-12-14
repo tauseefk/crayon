@@ -14,8 +14,8 @@ impl InputSystem {
         }
     }
 
-    pub fn process_event(&mut self, event: &WindowEvent) {
-        self.brush_controller.process_event(event);
+    pub fn process_event(&mut self, event: &WindowEvent, brush_size: f32) {
+        self.brush_controller.process_event(event, brush_size);
         self.camera_controller.process_event(event);
     }
 }
