@@ -11,10 +11,9 @@ pub struct FramePresentSystem;
 
 impl System for FramePresentSystem {
     fn run(&self, app: &App) {
-        let Some(mut render_ctx) = app.write::<RenderContext>() else {
-            return;
-        };
-        let Some(mut frame_ctx) = app.write::<FrameContext>() else {
+        let (Some(mut render_ctx), Some(mut frame_ctx)) =
+            (app.write::<RenderContext>(), app.write::<FrameContext>())
+        else {
             return;
         };
 

@@ -11,13 +11,11 @@ pub struct PaintSystem;
 
 impl System for PaintSystem {
     fn run(&self, app: &App) {
-        let Some(render_ctx) = app.read::<RenderContext>() else {
-            return;
-        };
-        let Some(mut canvas_ctx) = app.write::<CanvasContext>() else {
-            return;
-        };
-        let Some(mut brush_point_queue) = app.write::<BrushPointQueue>() else {
+        let (Some(render_ctx), Some(mut canvas_ctx), Some(mut brush_point_queue)) = (
+            app.read::<RenderContext>(),
+            app.write::<CanvasContext>(),
+            app.write::<BrushPointQueue>(),
+        ) else {
             return;
         };
 

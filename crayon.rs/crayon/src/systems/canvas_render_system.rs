@@ -11,13 +11,11 @@ pub struct CanvasRenderSystem;
 
 impl System for CanvasRenderSystem {
     fn run(&self, app: &App) {
-        let Some(mut render_ctx) = app.write::<RenderContext>() else {
-            return;
-        };
-        let Some(frame_ctx) = app.read::<FrameContext>() else {
-            return;
-        };
-        let Some(canvas) = app.read::<CanvasContext>() else {
+        let (Some(mut render_ctx), Some(frame_ctx), Some(canvas)) = (
+            app.write::<RenderContext>(),
+            app.read::<FrameContext>(),
+            app.read::<CanvasContext>(),
+        ) else {
             return;
         };
 
