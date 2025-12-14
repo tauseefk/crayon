@@ -30,16 +30,18 @@ impl ToolsSystem {
 
 impl System for ToolsSystem {
     fn run(&self, app: &App) {
-        let Some(mut egui_ctx_res) = app.write::<EguiContext>() else {
-            return;
-        };
-        let Some(mut render_ctx_res) = app.write::<RenderContext>() else {
-            return;
-        };
-        let Some(frame_ctx_res) = app.read::<FrameContext>() else {
-            return;
-        };
-        let Some(window_res) = app.write::<WindowResource>() else {
+        let (
+            Some(mut egui_ctx_res),
+            Some(mut render_ctx_res),
+            Some(frame_ctx_res),
+            Some(window_res),
+        ) = (
+            app.write::<EguiContext>(),
+            app.write::<RenderContext>(),
+            app.read::<FrameContext>(),
+            app.read::<WindowResource>(),
+        )
+        else {
             return;
         };
 

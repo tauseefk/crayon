@@ -223,16 +223,15 @@ impl ApplicationHandler<CustomEvent> for App {
                 ) {
                     let window_size = window.0.inner_size();
 
-                    let brush_position = world_to_ndc(
+                    let position = screen_to_ndc(
                         dot.position,
                         #[allow(clippy::cast_precision_loss)]
                         (window_size.width as f32, window_size.height as f32),
                     );
-                    let clamped_position = clamp::clamp_point(brush_position);
 
                     queue.write(
                         Dot2D {
-                            position: clamped_position,
+                            position,
                             radius: dot.radius,
                         },
                         state.camera.clone(),

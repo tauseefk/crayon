@@ -1,13 +1,15 @@
-use batteries::prelude::Dot2D;
+use batteries::prelude::{Dot2D, screen_to_world_position, world_to_screen_position};
 use cgmath::Point2;
 
 use crate::{
-    app::App,
+    app::{App, WindowResource},
     event_sender::EventSender,
     events::ControllerEvent,
     prelude::Resource,
     renderer::ui::{drawable::Drawable, hello_points::HELLO_POINTS},
     resource::ResourceContext,
+    state::State,
+    utils::transform_point::transform_point,
 };
 
 pub struct HelloResource {
@@ -25,7 +27,7 @@ impl HelloResource {
         }
     }
 
-    pub fn get_point_and_increment(&mut self) -> Option<Point2<f32>> {
+    fn get_point_and_increment(&mut self) -> Option<Point2<f32>> {
         let mut output = None;
         if self.is_animating && self.point_idx < HELLO_POINTS.len() {
             output = Some(HELLO_POINTS[self.point_idx]);
@@ -46,11 +48,12 @@ impl HelloWidget {
 
 impl Drawable for HelloWidget {
     fn draw(&self, ctx: &egui::Context, app: &App) {
-        let Some(event_sender) = app.read::<EventSender>() else {
-            return;
-        };
-
-        let Some(mut hello_res) = app.write::<HelloResource>() else {
+        let (Some(mut hello_res), Some(event_sender), Some(window), Some(state)) = (
+            app.write::<HelloResource>(),
+            app.read::<EventSender>(),
+            app.read::<WindowResource>(),
+            app.read::<State>(),
+        ) else {
             return;
         };
 
@@ -77,9 +80,17 @@ impl Drawable for HelloWidget {
         if hello_res.is_animating {
             for _ in 0..20 {
                 if let Some(point) = hello_res.get_point_and_increment() {
+                    let window_size = window.0.inner_size();
+                    #[allow(clippy::cast_precision_loss)]
+                    let window_size = (window_size.width as f32, window_size.height as f32);
+
+                    let position = screen_to_world_position(point, window_size);
+                    let position = transform_point(position, &state.camera);
+                    let position = world_to_screen_position(position, window_size);
+
                     event_sender.send(ControllerEvent::BrushPoint {
                         dot: Dot2D {
-                            position: point,
+                            position,
                             radius: 0.06668,
                         },
                     });
