@@ -1,12 +1,21 @@
+use cgmath::Point2;
+
 use crate::{
-    app::App, event_sender::EventSender, events::ControllerEvent, prelude::BrushProperties,
-    renderer::ui::drawable::Drawable, resource::ResourceContext,
-    resources::brush_preview_state::BrushPreviewState, state::State,
+    app::App,
+    event_sender::EventSender,
+    events::ControllerEvent,
+    prelude::{BrushProperties, POINTER_TO_BRUSH_SIZE_MULTIPLE, TOOLS_BG_COLOR},
+    renderer::ui::drawable::Drawable,
+    resource::ResourceContext,
+    resources::brush_preview_state::BrushPreviewState,
+    state::State,
 };
 
-const BRUSH_STEP_SIZE: f64 = 0.001;
-const MIN_BRUSH_SIZE: f32 = 0.005;
-const MAX_BRUSH_SIZE: f32 = 0.2;
+const BRUSH_STEP_SIZE: f64 = 0.5;
+const MIN_BRUSH_SIZE: f32 = 5.0;
+const MAX_BRUSH_SIZE: f32 = 50.0;
+// y-flipped
+const SCREEN_CENTER: Point2<f32> = Point2 { x: 1., y: -1. };
 
 pub struct BrushSizeWidget;
 
@@ -30,13 +39,15 @@ impl Drawable for BrushSizeWidget {
             .title_bar(false)
             .frame(
                 egui::Frame::window(&ctx.style())
-                    .fill(egui::Color32::from_rgb(216, 225, 255))
+                    .fill(TOOLS_BG_COLOR)
                     .shadow(egui::epaint::Shadow::NONE),
             )
             .show(ctx, |ui| {
-                let mut size = state.editor.brush_properties.size;
+                let mut pointer_size = state.editor.brush_properties.pointer_size;
                 let response = ui.add(
-                    egui::Slider::new(&mut size, MIN_BRUSH_SIZE..=MAX_BRUSH_SIZE)
+                    egui::Slider::new(&mut pointer_size, MIN_BRUSH_SIZE..=MAX_BRUSH_SIZE)
+                        .handle_shape(egui::style::HandleShape::Circle)
+                        .trailing_fill(true)
                         .step_by(BRUSH_STEP_SIZE)
                         .show_value(false)
                         .vertical(),
@@ -45,13 +56,14 @@ impl Drawable for BrushSizeWidget {
                 if response.dragged() || response.has_focus() || response.changed() {
                     // update brush preview state on user interaction
                     if let Some(mut preview_state) = app.write::<BrushPreviewState>() {
-                        preview_state.mark_interaction();
+                        preview_state.show_at_position(SCREEN_CENTER);
                     }
                 }
 
                 if response.changed() {
                     event_sender.send(ControllerEvent::UpdateBrush(BrushProperties {
-                        size,
+                        pointer_size,
+                        size: pointer_size * POINTER_TO_BRUSH_SIZE_MULTIPLE,
                         ..state.editor.brush_properties
                     }));
                 }

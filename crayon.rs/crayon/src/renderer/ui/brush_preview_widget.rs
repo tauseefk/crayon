@@ -1,10 +1,11 @@
+use batteries::prelude::world_to_screen_position;
+use egui::Pos2;
+
 use crate::{
     app::App, renderer::ui::drawable::Drawable, resource::ResourceContext,
     resources::brush_preview_state::BrushPreviewState, state::State,
 };
 
-const BRUSH_PREVIEW_SIZE_MULTIPLE: f32 = 500.0;
-const MIN_BRUSH_PREVIEW_SIZE: f32 = 50.0;
 const PREVIEW_CIRCLE_STROKE: f32 = 2.0;
 
 pub struct BrushPreviewWidget;
@@ -28,14 +29,18 @@ impl Drawable for BrushPreviewWidget {
         }
 
         let color = &state.editor.brush_properties.color;
-        let center = ctx.content_rect().center();
-        let camera_scale = state.camera.scale();
-        let radius =
-            (state.editor.brush_properties.size * BRUSH_PREVIEW_SIZE_MULTIPLE * camera_scale)
-                .min(MIN_BRUSH_PREVIEW_SIZE);
+        let ui_scale = preview_state.scale();
+        let radius = state.editor.brush_properties.pointer_size * ui_scale;
 
         let painter = ctx.debug_painter();
 
+        let position = preview_state.position();
+        let window_size = ctx.content_rect().size();
+        let position = world_to_screen_position(position, (window_size.x, window_size.y));
+        let center = Pos2 {
+            x: position.x,
+            y: position.y,
+        };
         painter.circle_filled(center, radius, color.to_egui_color());
 
         painter.circle_stroke(

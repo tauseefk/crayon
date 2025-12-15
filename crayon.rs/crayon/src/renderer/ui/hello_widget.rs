@@ -5,7 +5,7 @@ use crate::{
     app::{App, WindowResource},
     event_sender::EventSender,
     events::ControllerEvent,
-    prelude::Resource,
+    prelude::{Resource, TOOLS_BG_COLOR},
     renderer::ui::{drawable::Drawable, hello_points::HELLO_POINTS},
     resource::ResourceContext,
     state::State,
@@ -64,7 +64,7 @@ impl Drawable for HelloWidget {
             .title_bar(false)
             .frame(
                 egui::Frame::window(&ctx.style())
-                    .fill(egui::Color32::from_rgb(216, 225, 255))
+                    .fill(TOOLS_BG_COLOR)
                     .shadow(egui::epaint::Shadow::NONE),
             )
             .show(ctx, |ui| {

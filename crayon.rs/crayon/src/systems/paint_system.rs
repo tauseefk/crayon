@@ -2,7 +2,10 @@ use crate::{
     app::App,
     prelude::*,
     renderer::render_context::RenderContext,
-    resources::{brush_point_queue::BrushPointQueue, canvas_state::CanvasContext},
+    resources::{
+        brush_point_queue::BrushPointQueue, brush_preview_state::BrushPreviewState,
+        canvas_state::CanvasContext,
+    },
     system::System,
 };
 
@@ -11,17 +14,30 @@ pub struct PaintSystem;
 
 impl System for PaintSystem {
     fn run(&self, app: &App) {
-        let (Some(render_ctx), Some(mut canvas_ctx), Some(mut brush_point_queue)) = (
+        let (
+            Some(render_ctx),
+            Some(mut canvas_ctx),
+            Some(mut brush_point_queue),
+            Some(mut preview_state),
+        ) = (
             app.read::<RenderContext>(),
             app.write::<CanvasContext>(),
             app.write::<BrushPointQueue>(),
-        ) else {
+            app.write::<BrushPreviewState>(),
+        )
+        else {
             return;
         };
 
         // Renders each point to a texture, and then swaps the textures.
         // Submits once per point.
         while let Some(point_data) = brush_point_queue.read() {
+            let position = point_data.dot.position;
+            // transformation: [-1, 1] -> [0, 2]
+            preview_state.show_at_position(Point2 {
+                x: position.x + 1.,
+                y: position.y - 1.,
+            });
             canvas_ctx.update_paint_buffer(&render_ctx, &point_data.dot, &point_data.camera);
 
             let (read_bind_group, write_texture_view) = if canvas_ctx.is_rendering_to_a {

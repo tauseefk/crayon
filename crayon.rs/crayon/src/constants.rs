@@ -16,6 +16,8 @@ pub const CLEAR_COLOR: wgpu::Color = if cfg!(debug_assertions) {
     }
 };
 
+pub const TOOLS_BG_COLOR: egui::Color32 = egui::Color32::from_rgb(216, 225, 255);
+
 pub const INDICES: &[u16] = &[
     0, 1, 2, // bottom right triangle
     0, 2, 3, // left top triangle

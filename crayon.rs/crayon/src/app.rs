@@ -4,14 +4,11 @@ use crate::{
         egui_context::EguiContext, frame_context::FrameContext, render_context::RenderContext,
     },
     resources::{
-        brush_point_queue::BrushPointQueue, canvas_state::CanvasContext, input_system::InputSystem,
+        brush_point_queue::BrushPointQueue, brush_preview_state::BrushPreviewState,
+        canvas_state::CanvasContext, input_system::InputSystem,
     },
 };
 
-#[cfg(not(target_arch = "wasm32"))]
-use std::thread::sleep;
-#[cfg(not(target_arch = "wasm32"))]
-use std::time::Duration;
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
@@ -107,6 +104,11 @@ impl SystemRegistry for App {
 }
 
 impl ApplicationHandler<CustomEvent> for App {
+    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+        if let Some(window) = &self.read::<WindowResource>() {
+            window.0.request_redraw();
+        }
+    }
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.read::<WindowResource>().is_none() {
             // updated by wasm window attributes
@@ -153,7 +155,7 @@ impl ApplicationHandler<CustomEvent> for App {
                 let canvas_state =
                     CanvasContext::new(&render_context, (window_size.width, window_size.height));
                 let egui_context = EguiContext::new(window.clone(), &render_context);
-                let app_state = State::new();
+                let app_state = State::new(window_size.width, window_size.height);
 
                 self.insert_resource(render_context)
                     .insert_resource(canvas_state)
@@ -201,10 +203,16 @@ impl ApplicationHandler<CustomEvent> for App {
             }
             // TODO: cleanup the transformation code
             CustomEvent::CameraZoom { delta } => {
-                if let (Some(canvas_ctx), Some(render_ctx), Some(mut state)) = (
+                if let (
+                    Some(canvas_ctx),
+                    Some(render_ctx),
+                    Some(mut state),
+                    Some(mut preview_state),
+                ) = (
                     &mut self.write::<CanvasContext>(),
                     self.read::<RenderContext>(),
                     self.write::<State>(),
+                    self.write::<BrushPreviewState>(),
                 ) {
                     let transform = CameraTransform {
                         scale_delta: Some(delta),
@@ -212,6 +220,8 @@ impl ApplicationHandler<CustomEvent> for App {
                     };
                     state.camera.update(&transform);
                     canvas_ctx.update_camera_buffer(&render_ctx, &state.camera);
+                    // Update brush preview scale to match user zoom
+                    preview_state.update_scale(delta);
                 }
             }
             // TODO: cleanup the transformation code
@@ -269,7 +279,7 @@ impl ApplicationHandler<CustomEvent> for App {
                 let canvas_ctx =
                     CanvasContext::new(&render_context, (window_size.width, window_size.height));
                 let egui_ctx = EguiContext::new(window.clone(), &render_context);
-                let app_state = State::new();
+                let app_state = State::new(window_size.width, window_size.height);
 
                 self.insert_resource(*render_context)
                     .insert_resource(canvas_ctx)
@@ -304,7 +314,7 @@ impl ApplicationHandler<CustomEvent> for App {
                     if new_size.width > 0 && new_size.height > 0 {
                         state
                             .camera
-                            .update_aspect_ratio(new_size.width as f32, new_size.height as f32);
+                            .update_viewport(new_size.width as f32, new_size.height as f32);
                         // camera buffer needs to be updated after updating the camera
                         canvas_ctx.update_camera_buffer(&render_ctx, &state.camera);
                         render_ctx.reconfigure(new_size);
@@ -313,12 +323,6 @@ impl ApplicationHandler<CustomEvent> for App {
             }
             WindowEvent::RedrawRequested => {
                 self.run_update_systems();
-                // Cap framerate
-                #[cfg(not(target_arch = "wasm32"))]
-                sleep(Duration::from_millis(5));
-                if let Some(window_res) = self.read::<WindowResource>() {
-                    window_res.0.request_redraw();
-                }
             }
             event => {
                 // Pass events to egui first, before any other processing

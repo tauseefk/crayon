@@ -7,8 +7,8 @@ pub struct State {
 }
 
 impl State {
-    pub fn new() -> Self {
-        let camera = Camera2D::new();
+    pub fn new(window_width: u32, window_height: u32) -> Self {
+        let camera = Camera2D::with_viewport(window_width as f32, window_height as f32);
         let editor_state = EditorState::new();
 
         let mut camera_uniform = CameraUniform::new();

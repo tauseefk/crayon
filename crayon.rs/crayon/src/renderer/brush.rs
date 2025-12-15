@@ -1,6 +1,14 @@
 use crate::prelude::*;
 
-pub const DEFAULT_BRUSH_SIZE: f32 = 0.065;
+pub const POINTER_SIZE: f32 = 30.0;
+
+#[cfg(target_arch = "wasm32")]
+pub const POINTER_TO_BRUSH_SIZE_MULTIPLE: f32 = 0.00334; // 1 / 300
+#[cfg(not(target_arch = "wasm32"))]
+pub const POINTER_TO_BRUSH_SIZE_MULTIPLE: f32 = 0.001667; // 1 / 600
+
+pub const DEFAULT_BRUSH_SIZE: f32 = POINTER_SIZE * POINTER_TO_BRUSH_SIZE_MULTIPLE;
+
 const BRUSH_SHARPNESS: f32 = 0.4;
 const DEFAULT_BRUSH_POSITION: f32 = 2.0;
 
