@@ -1,7 +1,6 @@
 use crate::prelude::*;
 
-pub const BRUSH_SIZE: f32 = 40.0 * 0.001_667;
-pub const BRUSH_STEP_SIZE: f32 = 1.0;
+pub const DEFAULT_BRUSH_SIZE: f32 = 0.065;
 const BRUSH_SHARPNESS: f32 = 0.4;
 const DEFAULT_BRUSH_POSITION: f32 = 2.0;
 
@@ -21,7 +20,7 @@ impl BrushFragmentUniform {
         Self {
             color,
             sharpness: BRUSH_SHARPNESS,
-            size: BRUSH_SIZE,
+            size: DEFAULT_BRUSH_SIZE,
             position: [DEFAULT_BRUSH_POSITION, DEFAULT_BRUSH_POSITION],
             inverse_view_projection: cgmath::Matrix4::identity().into(),
         }
@@ -29,6 +28,10 @@ impl BrushFragmentUniform {
 
     pub fn set_color(&mut self, color: [f32; 4]) {
         self.color = color;
+    }
+
+    pub fn set_size(&mut self, size: f32) {
+        self.size = size;
     }
 
     pub fn update_dot(&mut self, dot: &Dot2D) {

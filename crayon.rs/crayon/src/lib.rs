@@ -54,7 +54,9 @@ mod prelude {
 
 use crate::renderer::ui::hello_widget::HelloResource;
 use crate::resources::brush_point_queue::BrushPointQueue;
+use crate::resources::brush_preview_state::BrushPreviewState;
 use crate::resources::frame_time::FrameTime;
+use crate::systems::brush_preview_update_system::BrushPreviewUpdateSystem;
 use crate::systems::canvas_render_system::CanvasRenderSystem;
 use crate::systems::frame_acquire_system::FrameAcquireSystem;
 use crate::systems::frame_present_system::FramePresentSystem;
@@ -81,9 +83,11 @@ pub fn run() -> anyhow::Result<()> {
     app.insert_resource(FrameTime::new());
     app.insert_resource(BrushPointQueue::new());
     app.insert_resource(HelloResource::new());
+    app.insert_resource(BrushPreviewState::new());
 
     app.add_system(Schedule::PreUpdate, FrameAcquireSystem)
         .add_system(Schedule::Update, FrameTimeUpdateSystem)
+        .add_system(Schedule::Update, BrushPreviewUpdateSystem)
         .add_system(Schedule::Update, PaintSystem)
         .add_system(Schedule::Update, CanvasRenderSystem)
         .add_system(Schedule::Update, ToolsSystem::new())

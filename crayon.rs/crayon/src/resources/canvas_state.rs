@@ -371,8 +371,9 @@ impl CanvasContext {
         );
     }
 
-    pub fn update_brush_color(&mut self, render_ctx: &RenderContext, color: [f32; 4]) {
+    pub fn update_brush(&mut self, render_ctx: &RenderContext, color: [f32; 4], size: f32) {
         self.paint_fragment_uniform.set_color(color);
+        self.paint_fragment_uniform.set_size(size);
 
         render_ctx.queue.write_buffer(
             &self.paint_fragment_uniform_buffer,

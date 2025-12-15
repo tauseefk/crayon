@@ -238,14 +238,18 @@ impl ApplicationHandler<CustomEvent> for App {
                     );
                 }
             }
-            CustomEvent::UpdateBrushColor(color) => {
+            CustomEvent::UpdateBrush(properties) => {
                 if let (Some(mut state), Some(mut canvas_ctx), Some(render_ctx)) = (
                     self.write::<State>(),
                     self.write::<CanvasContext>(),
                     self.read::<RenderContext>(),
                 ) {
-                    state.editor.update_brush_color(color);
-                    canvas_ctx.update_brush_color(&render_ctx, color.to_rgba_array());
+                    state.editor.update_brush(properties);
+                    canvas_ctx.update_brush(
+                        &render_ctx,
+                        properties.color.to_rgba_array(),
+                        properties.size,
+                    );
                 }
             }
             CustomEvent::_UiUpdate => {}
@@ -328,8 +332,10 @@ impl ApplicationHandler<CustomEvent> for App {
                     }
                 }
 
-                if let Some(mut input_system) = self.write::<InputSystem>() {
-                    input_system.process_event(&event);
+                if let (Some(mut input_system), Some(state)) =
+                    (self.write::<InputSystem>(), self.read::<State>())
+                {
+                    input_system.process_event(&event, state.editor.brush_properties.size);
                 }
 
                 if let WindowEvent::KeyboardInput {

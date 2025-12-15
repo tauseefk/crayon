@@ -1,6 +1,12 @@
 use crate::{
-    app::App, event_sender::EventSender, events::ControllerEvent, prelude::BrushColor,
-    renderer::ui::drawable::Drawable, resource::ResourceContext, state::State,
+    app::App,
+    event_sender::EventSender,
+    events::ControllerEvent,
+    prelude::{BrushColor, BrushProperties},
+    renderer::ui::drawable::Drawable,
+    resource::ResourceContext,
+    resources::brush_preview_state::BrushPreviewState,
+    state::State,
 };
 
 pub struct ColorPickerWidget;
@@ -21,9 +27,9 @@ impl Drawable for ColorPickerWidget {
             return;
         };
 
-        let current_color = &state.editor.brush_color;
+        let current_color = &state.editor.brush_properties.color;
 
-        egui::Window::new("Controls")
+        egui::Window::new("Color Controls")
             .fixed_pos(egui::pos2(8.0, 8.0))
             .movable(false)
             .resizable(false)
@@ -35,10 +41,20 @@ impl Drawable for ColorPickerWidget {
             )
             .show(ctx, |ui| {
                 let mut color = current_color.to_srgb();
+                let response = ui.color_edit_button_srgb(&mut color);
 
-                if ui.color_edit_button_srgb(&mut color).changed() {
+                if response.changed() || response.clicked() {
+                    if let Some(mut preview_state) = app.write::<BrushPreviewState>() {
+                        preview_state.mark_interaction();
+                    }
+                }
+
+                if response.changed() {
                     let new_color = BrushColor::from(color);
-                    event_sender.send(ControllerEvent::UpdateBrushColor(new_color));
+                    event_sender.send(ControllerEvent::UpdateBrush(BrushProperties {
+                        color: new_color,
+                        ..state.editor.brush_properties
+                    }));
                 }
             });
     }
