@@ -1,8 +1,5 @@
 use wgpu::{TextureFormat, TextureViewDescriptor};
 
-#[cfg(target_arch = "wasm32")]
-use crate::constants::WINDOW_SIZE;
-
 pub struct CRTexture {
     #[allow(unused)]
     pub texture: wgpu::Texture,
@@ -17,20 +14,6 @@ impl CRTexture {
         format: TextureFormat,
         label: &str,
     ) -> Self {
-        #[cfg(target_arch = "wasm32")]
-        let dimensions = (
-            if dimensions.0 == 0 {
-                WINDOW_SIZE.0
-            } else {
-                dimensions.0.min(WINDOW_SIZE.0)
-            },
-            if dimensions.1 == 0 {
-                WINDOW_SIZE.1
-            } else {
-                dimensions.1.min(WINDOW_SIZE.1)
-            },
-        );
-
         let size = wgpu::Extent3d {
             width: dimensions.0,
             height: dimensions.1,

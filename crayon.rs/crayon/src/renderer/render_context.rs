@@ -3,8 +3,6 @@ use std::sync::Arc;
 use wgpu::{CommandEncoder, Device, Queue, Surface, SurfaceConfiguration};
 use winit::window::Window;
 
-#[cfg(target_arch = "wasm32")]
-use crate::constants::WINDOW_SIZE;
 use crate::resource::Resource;
 
 /// Frame independent resources for rendering.
@@ -21,13 +19,6 @@ impl RenderContext {
         #[allow(unused_mut)]
         let mut size = window.inner_size();
 
-        // window resizing events on the browser can cause problems,
-        // so override with default size
-        #[cfg(target_arch = "wasm32")]
-        {
-            size.width = WINDOW_SIZE.0;
-            size.height = WINDOW_SIZE.1;
-        }
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::PRIMARY,
             ..Default::default()
