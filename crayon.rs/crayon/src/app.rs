@@ -128,6 +128,18 @@ impl ApplicationHandler<CustomEvent> for App {
             window.0.request_redraw();
         }
     }
+
+    /// Resumed
+    ///
+    /// This handles two critical things:
+    /// - window creation
+    /// - resource insertion into `App`
+    ///
+    /// On WASM target, window is first created with zero size,
+    /// so the actual resource creation (renderer, canvas, etc) is done via `CustomEvent::CanvasCreated`
+    ///
+    /// Resources are inserted here for Non-WASM targets.
+    ///
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.read::<WindowResource>().is_none() {
             // updated by wasm window attributes
@@ -152,42 +164,35 @@ impl ApplicationHandler<CustomEvent> for App {
 
             let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
 
-            #[cfg(target_arch = "wasm32")]
-            {
-                let proxy = self.event_loop_proxy.clone();
-                wasm_bindgen_futures::spawn_local(async move {
-                    let render_context = RenderContext::new(window.clone())
-                        .await
-                        .expect("Unable to create canvas!!!");
-                    let _ = proxy.send_event(CustomEvent::CanvasCreated {
-                        render_context: Box::new(render_context),
-                        window: window.clone(),
-                    });
-                });
-            }
+            // WindowResource can be inserted for all platforms
+            self.insert_resource(WindowResource(window.clone()));
 
             #[cfg(not(target_arch = "wasm32"))]
             {
+                let window_size = window.inner_size();
                 let render_context = pollster::block_on(RenderContext::new(window.clone()))
                     .expect("Unable to create canvas!!!");
-                let window_size = window.inner_size();
                 let canvas_state =
                     CanvasContext::new(&render_context, (window_size.width, window_size.height));
-                let egui_context = EguiContext::new(window.clone(), &render_context);
+                let egui_context = EguiContext::new(window, &render_context);
                 let app_state = State::new(window_size.width, window_size.height);
 
                 self.insert_resource(render_context)
                     .insert_resource(canvas_state)
                     .insert_resource(egui_context)
                     .insert_resource(app_state)
-                    .insert_resource(FrameContext::new())
-                    .insert_resource(WindowResource(window));
+                    .insert_resource(FrameContext::new());
 
                 self.run_update_systems();
             }
         }
     }
 
+    /// User Event Handler
+    ///
+    /// This handles all `CustomEvent` instances.
+    /// For the WASM target, it handles (renderer, canvas, state, etc) resource creation and insertion as well.
+    ///
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: CustomEvent) {
         match event {
             CustomEvent::ClearCanvas => {
@@ -281,20 +286,12 @@ impl ApplicationHandler<CustomEvent> for App {
                     );
                 }
             }
-            CustomEvent::_UiUpdate => {}
+            // Only used by WASM target
             CustomEvent::CanvasCreated {
                 render_context,
                 window,
             } => {
-                #[allow(unused_mut)]
-                let mut window_size = window.inner_size();
-                // Use the same size override as RenderContext
-                #[cfg(target_arch = "wasm32")]
-                {
-                    window_size.width = WINDOW_SIZE.0;
-                    window_size.height = WINDOW_SIZE.1;
-                }
-
+                let window_size = window.inner_size();
                 let canvas_ctx =
                     CanvasContext::new(&render_context, (window_size.width, window_size.height));
                 let egui_ctx = EguiContext::new(window.clone(), &render_context);
@@ -316,6 +313,10 @@ impl ApplicationHandler<CustomEvent> for App {
         }
     }
 
+    /// Window Event
+    ///
+    /// On WASM target, the first resize event handles creation of RenderContext.
+    ///
     fn window_event(
         &mut self,
         event_loop: &ActiveEventLoop,
@@ -325,23 +326,50 @@ impl ApplicationHandler<CustomEvent> for App {
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(new_size) => {
+                // Ignore zero-size resize events
+                if new_size.width == 0 || new_size.height == 0 {
+                    return;
+                }
+
+                #[cfg(target_arch = "wasm32")]
+                if self.read::<RenderContext>().is_none() {
+                    let window = self.read::<WindowResource>().map(|res| res.0.clone());
+
+                    if let Some(window) = window {
+                        let proxy = self.event_loop_proxy.clone();
+                        wasm_bindgen_futures::spawn_local(async move {
+                            // initialize with correctly sized window
+                            let render_context = RenderContext::new(window.clone())
+                                .await
+                                .expect("Unable to create canvas!!!");
+                            let _ = proxy.send_event(CustomEvent::CanvasCreated {
+                                render_context: Box::new(render_context),
+                                window: window.clone(),
+                            });
+                        });
+                    }
+                    return;
+                }
+
+                // Subsequent resize handling
                 if let (Some(mut render_ctx), Some(mut canvas_ctx), Some(mut state)) = (
                     self.write::<RenderContext>(),
                     self.write::<CanvasContext>(),
                     self.write::<State>(),
                 ) {
-                    if new_size.width > 0 && new_size.height > 0 {
-                        state
-                            .camera
-                            .update_viewport(new_size.width as f32, new_size.height as f32);
-                        // camera buffer needs to be updated after updating the camera
-                        canvas_ctx.update_camera_buffer(&render_ctx, &state.camera);
-                        render_ctx.reconfigure(new_size);
-                    }
+                    state
+                        .camera
+                        .update_viewport(new_size.width as f32, new_size.height as f32);
+                    // camera buffer needs to be updated after updating the camera
+                    canvas_ctx.update_camera_buffer(&render_ctx, &state.camera);
+                    render_ctx.reconfigure(new_size);
                 }
             }
             WindowEvent::RedrawRequested => {
-                self.run_update_systems();
+                // Only run if resources are initialized
+                if self.read::<RenderContext>().is_some() {
+                    self.run_update_systems();
+                }
             }
             event => {
                 // Pass events to egui first, before any other processing

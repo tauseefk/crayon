@@ -41,6 +41,4 @@ pub enum CustomEvent {
     },
     ClearCanvas,
     UpdateBrush(BrushProperties),
-    /// Useful when triggering UI updates based on rendering events
-    _UiUpdate,
 }
