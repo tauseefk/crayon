@@ -1,6 +1,6 @@
 use cgmath::{Point2, Transform};
 
-use crate::prelude::Camera2D;
+use crate::renderer::camera::Camera2D;
 
 pub fn transform_point(point: Point2<f32>, camera: &Camera2D) -> Point2<f32> {
     let transform_matrix = camera.build_2d_transform_matrix();

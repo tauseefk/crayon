@@ -3,6 +3,8 @@ use std::sync::Arc;
 use wgpu::{CommandEncoder, Device, Queue, Surface, SurfaceConfiguration};
 use winit::window::Window;
 
+#[cfg(target_arch = "wasm32")]
+use crate::constants::WINDOW_SIZE;
 use crate::resource::Resource;
 
 /// Frame independent resources for rendering.
@@ -23,8 +25,6 @@ impl RenderContext {
         // so override with default size
         #[cfg(target_arch = "wasm32")]
         {
-            use crate::prelude::WINDOW_SIZE;
-
             size.width = WINDOW_SIZE.0;
             size.height = WINDOW_SIZE.1;
         }

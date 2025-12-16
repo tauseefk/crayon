@@ -3,11 +3,11 @@ use cgmath::Point2;
 
 use crate::{
     app::{App, WindowResource},
+    constants::TOOLS_BG_COLOR,
     event_sender::EventSender,
     events::ControllerEvent,
-    prelude::{Resource, TOOLS_BG_COLOR},
     renderer::ui::{drawable::Drawable, hello_points::HELLO_POINTS},
-    resource::ResourceContext,
+    resource::{Resource, ResourceContext},
     state::State,
     utils::transform_point::transform_point,
 };

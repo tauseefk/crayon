@@ -1,6 +1,6 @@
 use crate::{
-    app::App, prelude::TOOLS_BG_COLOR, renderer::ui::drawable::Drawable, resource::ResourceContext,
-    resources::frame_time::FrameTime,
+    app::App, constants::TOOLS_BG_COLOR, renderer::ui::drawable::Drawable,
+    resource::ResourceContext, resources::frame_time::FrameTime,
 };
 
 pub struct FpsWidget;

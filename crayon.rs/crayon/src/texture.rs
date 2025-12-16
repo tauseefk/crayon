@@ -1,7 +1,7 @@
 use wgpu::{TextureFormat, TextureViewDescriptor};
 
 #[cfg(target_arch = "wasm32")]
-use crate::prelude::WINDOW_SIZE;
+use crate::constants::WINDOW_SIZE;
 
 pub struct CRTexture {
     #[allow(unused)]

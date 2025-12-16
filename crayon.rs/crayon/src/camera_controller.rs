@@ -1,4 +1,11 @@
-use crate::prelude::*;
+use cgmath::{EuclideanSpace, Point2};
+use winit::{
+    dpi::PhysicalPosition,
+    event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent},
+    keyboard::{KeyCode, PhysicalKey},
+};
+
+use crate::{event_sender::EventSender, events::ControllerEvent, utils::zoom};
 
 /// This represents the camera controller that's used to control zooming and panning of the drawing canvas.
 ///

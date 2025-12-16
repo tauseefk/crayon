@@ -1,5 +1,6 @@
-use crate::prelude::*;
-use crate::resource::Resource;
+use batteries::prelude::Dot2D;
+
+use crate::{renderer::camera::Camera2D, resource::Resource};
 
 const BRUSH_POINT_QUEUE_SIZE: usize = 500;
 #[derive(Clone, Copy)]

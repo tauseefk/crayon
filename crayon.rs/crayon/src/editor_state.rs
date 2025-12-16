@@ -1,4 +1,4 @@
-use crate::prelude::{DEFAULT_BRUSH_SIZE, POINTER_SIZE};
+use crate::renderer::brush::{DEFAULT_BRUSH_SIZE, POINTER_SIZE};
 
 /// Generalized color representation for editor state
 #[derive(Debug, Clone, Copy, PartialEq)]

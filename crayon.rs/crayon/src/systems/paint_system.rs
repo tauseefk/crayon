@@ -1,7 +1,9 @@
+use cgmath::Point2;
+
 use crate::{
     app::App,
-    prelude::*,
     renderer::render_context::RenderContext,
+    resource::ResourceContext,
     resources::{
         brush_point_queue::BrushPointQueue, brush_preview_state::BrushPreviewState,
         canvas_state::CanvasContext,

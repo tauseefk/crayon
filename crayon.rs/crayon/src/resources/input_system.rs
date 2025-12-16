@@ -1,5 +1,9 @@
-use crate::prelude::*;
-use crate::resource::Resource;
+use winit::event::WindowEvent;
+
+use crate::{
+    brush_controller::BrushController, camera_controller::CameraController,
+    event_sender::EventSender, resource::Resource,
+};
 
 pub struct InputSystem {
     brush_controller: BrushController,
