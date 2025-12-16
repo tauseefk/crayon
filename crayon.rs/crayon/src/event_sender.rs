@@ -1,5 +1,5 @@
-use crate::prelude::*;
-use crate::resource::Resource;
+use crate::events::ControllerEvent;
+use crate::{events::CustomEvent, resource::Resource};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub type ControllerEventSender = std::sync::mpsc::Sender<ControllerEvent>;

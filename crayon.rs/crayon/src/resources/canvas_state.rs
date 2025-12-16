@@ -1,7 +1,18 @@
-use crate::prelude::*;
+use batteries::prelude::Dot2D;
+use wgpu::util::DeviceExt;
+
+use crate::editor_state::DEFAULT_BRUSH_COLOR;
+use crate::renderer::brush::BrushFragmentUniform;
+use crate::renderer::camera::{Camera2D, CameraUniform, DISPLAY_VERTICES, DisplayVertex};
+use crate::renderer::pipeline::CRRenderPipeline;
 use crate::renderer::render_context::RenderContext;
 use crate::resource::Resource;
 use crate::texture::CRTexture;
+
+const INDICES: &[u16] = &[
+    0, 1, 2, // bottom right triangle
+    0, 2, 3, // left top triangle
+];
 
 pub struct CanvasContext {
     pub render_texture_a: CRTexture,

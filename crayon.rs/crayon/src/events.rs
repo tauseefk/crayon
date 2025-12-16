@@ -1,4 +1,8 @@
-use crate::{prelude::*, renderer::render_context::RenderContext};
+use std::sync::Arc;
+
+use batteries::prelude::Dot2D;
+
+use crate::{editor_state::BrushProperties, renderer::render_context::RenderContext};
 
 /// Controller events are created to add an indirection so the events can be replayed.
 /// This is intended to build the undo/redo functionality in the future.

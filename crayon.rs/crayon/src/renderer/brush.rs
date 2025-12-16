@@ -1,11 +1,13 @@
-use crate::prelude::*;
+use batteries::prelude::Dot2D;
+
+use crate::renderer::camera::Camera2D;
 
 pub const POINTER_SIZE: f32 = 30.0;
 
 #[cfg(target_arch = "wasm32")]
-pub const POINTER_TO_BRUSH_SIZE_MULTIPLE: f32 = 0.00334; // 1 / 300
+pub const POINTER_TO_BRUSH_SIZE_MULTIPLE: f32 = 0.003;
 #[cfg(not(target_arch = "wasm32"))]
-pub const POINTER_TO_BRUSH_SIZE_MULTIPLE: f32 = 0.001667; // 1 / 600
+pub const POINTER_TO_BRUSH_SIZE_MULTIPLE: f32 = 0.0025;
 
 pub const DEFAULT_BRUSH_SIZE: f32 = POINTER_SIZE * POINTER_TO_BRUSH_SIZE_MULTIPLE;
 

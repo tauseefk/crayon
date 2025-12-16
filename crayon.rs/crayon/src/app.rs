@@ -1,18 +1,37 @@
+use batteries::prelude::{Dot2D, screen_to_ndc, screen_to_world_position};
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+use winit::{
+    application::ApplicationHandler,
+    dpi::LogicalSize,
+    event::{KeyEvent, WindowEvent},
+    event_loop::{ActiveEventLoop, EventLoopProxy},
+    keyboard::{KeyCode, PhysicalKey},
+    window::Window,
+};
+
 use crate::{
-    prelude::*,
+    constants::WINDOW_SIZE,
+    event_sender::EventSender,
+    events::CustomEvent,
     renderer::{
-        egui_context::EguiContext, frame_context::FrameContext, render_context::RenderContext,
+        camera::CameraTransform, egui_context::EguiContext, frame_context::FrameContext,
+        render_context::RenderContext,
     },
+    resource::{Res, ResMut, Resource, ResourceContext},
     resources::{
         brush_point_queue::BrushPointQueue, brush_preview_state::BrushPreviewState,
         canvas_state::CanvasContext, input_system::InputSystem,
     },
+    state::State,
+    system::{Schedule, System, SystemRegistry},
+    utils::clamp,
 };
 
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
-    sync::RwLock,
+    sync::{Arc, RwLock},
 };
 
 pub struct WindowResource(pub Arc<winit::window::Window>);

@@ -2,10 +2,11 @@ use cgmath::Point2;
 
 use crate::{
     app::App,
+    constants::TOOLS_BG_COLOR,
+    editor_state::BrushProperties,
     event_sender::EventSender,
     events::ControllerEvent,
-    prelude::{BrushProperties, POINTER_TO_BRUSH_SIZE_MULTIPLE, TOOLS_BG_COLOR},
-    renderer::ui::drawable::Drawable,
+    renderer::{brush::POINTER_TO_BRUSH_SIZE_MULTIPLE, ui::drawable::Drawable},
     resource::ResourceContext,
     resources::brush_preview_state::BrushPreviewState,
     state::State,

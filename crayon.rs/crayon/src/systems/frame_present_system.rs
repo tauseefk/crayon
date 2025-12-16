@@ -1,7 +1,7 @@
 use crate::{
     app::App,
-    prelude::*,
     renderer::{frame_context::FrameContext, render_context::RenderContext},
+    resource::ResourceContext,
     system::System,
 };
 

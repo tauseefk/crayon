@@ -1,4 +1,8 @@
-use crate::prelude::*;
+use crate::{
+    editor_state::EditorState,
+    renderer::camera::{Camera2D, CameraUniform},
+    resource::Resource,
+};
 
 /// Entire app's state.
 pub struct State {

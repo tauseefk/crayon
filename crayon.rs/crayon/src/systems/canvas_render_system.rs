@@ -1,7 +1,8 @@
 use crate::{
     app::App,
-    prelude::*,
+    constants::CLEAR_COLOR,
     renderer::{frame_context::FrameContext, render_context::RenderContext},
+    resource::ResourceContext,
     resources::canvas_state::CanvasContext,
     system::System,
 };

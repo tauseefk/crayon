@@ -1,4 +1,11 @@
-use crate::prelude::*;
+use std::mem;
+
+use cgmath::EuclideanSpace;
+
+use crate::{
+    constants::{CAMERA_ZOOM_MAX, CAMERA_ZOOM_MIN, DEFAULT_CANVAS_ZOOM, WINDOW_SIZE},
+    utils::clamp,
+};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]

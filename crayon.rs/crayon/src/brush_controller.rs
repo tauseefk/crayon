@@ -1,4 +1,13 @@
-use crate::prelude::*;
+use batteries::prelude::{Dot2D, PointProcessor, StrokeDot2D};
+use cgmath::{EuclideanSpace, Point2};
+use winit::{
+    event::{ElementState, MouseButton, WindowEvent},
+    keyboard::{KeyCode, PhysicalKey},
+};
+
+use crate::{
+    event_sender::EventSender, events::ControllerEvent, renderer::brush::DEFAULT_BRUSH_SIZE,
+};
 
 const BRUSH_STEP_SIZE: f32 = 1.0;
 
