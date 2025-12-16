@@ -1,5 +1,5 @@
 use crate::{
-    app::App, renderer::ui::drawable::Drawable, resource::ResourceContext,
+    app::App, prelude::TOOLS_BG_COLOR, renderer::ui::drawable::Drawable, resource::ResourceContext,
     resources::frame_time::FrameTime,
 };
 
@@ -26,7 +26,7 @@ impl Drawable for FpsWidget {
             .title_bar(false)
             .frame(
                 egui::Frame::window(&ctx.style())
-                    .fill(egui::Color32::from_rgb(216, 225, 255))
+                    .fill(TOOLS_BG_COLOR)
                     .shadow(egui::epaint::Shadow::NONE),
             )
             .show(ctx, |ui| {

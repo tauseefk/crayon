@@ -1,6 +1,6 @@
 use crate::{
-    app::App, event_sender::EventSender, events::ControllerEvent, renderer::ui::drawable::Drawable,
-    resource::ResourceContext,
+    app::App, event_sender::EventSender, events::ControllerEvent, prelude::TOOLS_BG_COLOR,
+    renderer::ui::drawable::Drawable, resource::ResourceContext,
 };
 
 pub struct ClearScreenWidget;
@@ -26,7 +26,7 @@ impl Drawable for ClearScreenWidget {
             .title_bar(false)
             .frame(
                 egui::Frame::window(&ctx.style())
-                    .fill(egui::Color32::from_rgb(216, 225, 255))
+                    .fill(TOOLS_BG_COLOR)
                     .shadow(egui::epaint::Shadow::NONE),
             )
             .show(ctx, |ui| {

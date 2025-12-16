@@ -1,8 +1,10 @@
+use cgmath::Point2;
+
 use crate::{
     app::App,
     event_sender::EventSender,
     events::ControllerEvent,
-    prelude::{BrushColor, BrushProperties},
+    prelude::{BrushColor, BrushProperties, TOOLS_BG_COLOR},
     renderer::ui::drawable::Drawable,
     resource::ResourceContext,
     resources::brush_preview_state::BrushPreviewState,
@@ -36,7 +38,7 @@ impl Drawable for ColorPickerWidget {
             .title_bar(false)
             .frame(
                 egui::Frame::window(&ctx.style())
-                    .fill(egui::Color32::from_rgb(216, 225, 255))
+                    .fill(TOOLS_BG_COLOR)
                     .shadow(egui::epaint::Shadow::NONE),
             )
             .show(ctx, |ui| {
@@ -45,7 +47,7 @@ impl Drawable for ColorPickerWidget {
 
                 if response.changed() || response.clicked() {
                     if let Some(mut preview_state) = app.write::<BrushPreviewState>() {
-                        preview_state.mark_interaction();
+                        preview_state.show_at_position(Point2 { x: 1., y: -1. });
                     }
                 }
 

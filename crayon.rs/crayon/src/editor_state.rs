@@ -1,4 +1,4 @@
-use crate::prelude::DEFAULT_BRUSH_SIZE;
+use crate::prelude::{DEFAULT_BRUSH_SIZE, POINTER_SIZE};
 
 /// Generalized color representation for editor state
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -52,6 +52,9 @@ pub const DEFAULT_BRUSH_COLOR: BrushColor = BrushColor::new(128.0 / 255.0, 85.0 
 #[derive(Debug, Clone, Copy)]
 pub struct BrushProperties {
     pub color: BrushColor,
+    /// matches with the preview, can be scaled via Camera scale
+    pub pointer_size: f32,
+    /// after multiplying with `POINTER_TO_BRUSH_SIZE_MULTIPLE`
     pub size: f32,
 }
 
@@ -66,6 +69,7 @@ impl EditorState {
         Self {
             brush_properties: BrushProperties {
                 color: DEFAULT_BRUSH_COLOR,
+                pointer_size: POINTER_SIZE,
                 size: DEFAULT_BRUSH_SIZE,
             },
         }
