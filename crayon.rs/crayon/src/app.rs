@@ -220,7 +220,7 @@ impl ApplicationHandler<CustomEvent> for App {
                     };
                     state.camera.update(&transform);
                     canvas_ctx.update_camera_buffer(&render_ctx, &state.camera);
-                    // Update brush preview scale to match user zoom
+                    // Update brush preview scale to match viewport zoom
                     preview_state.update_scale(delta);
                 }
             }
