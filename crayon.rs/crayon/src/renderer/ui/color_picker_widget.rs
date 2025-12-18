@@ -6,7 +6,7 @@ use crate::{
     editor_state::{BrushColor, BrushProperties},
     event_sender::EventSender,
     events::ControllerEvent,
-    renderer::ui::drawable::Drawable,
+    renderer::ui::{drawable::Drawable, theme::widgets::CircularColorPicker},
     resource::ResourceContext,
     resources::brush_preview_state::BrushPreviewState,
     state::State,
@@ -44,7 +44,7 @@ impl Drawable for ColorPickerWidget {
             )
             .show(ctx, |ui| {
                 let mut color = current_color.to_srgb();
-                let response = ui.color_edit_button_srgb(&mut color);
+                let response = ui.add(CircularColorPicker::new(&mut color).radius(18.0));
 
                 if response.changed() || response.clicked() {
                     if let Some(mut preview_state) = app.write::<BrushPreviewState>() {

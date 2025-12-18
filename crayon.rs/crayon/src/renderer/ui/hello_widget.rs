@@ -1,12 +1,17 @@
 use batteries::prelude::{Dot2D, screen_to_world_position, world_to_screen_position};
 use cgmath::Point2;
+use egui::Vec2;
 
 use crate::{
     app::{App, WindowResource},
     constants::TOOLS_BG_COLOR,
     event_sender::EventSender,
     events::ControllerEvent,
-    renderer::ui::{drawable::Drawable, hello_points::HELLO_POINTS},
+    renderer::ui::{
+        drawable::Drawable,
+        hello_points::HELLO_POINTS,
+        theme::widgets::{IconButton, PillButton},
+    },
     resource::{Resource, ResourceContext},
     state::State,
     utils::transform_point::transform_point,
@@ -68,8 +73,12 @@ impl Drawable for HelloWidget {
                     .shadow(egui::epaint::Shadow::NONE),
             )
             .show(ctx, |ui| {
+                let wave_icon = egui::include_image!("../../../assets/icons/wave.svg");
                 if ui
-                    .add_sized([40.0, 20.0], egui::Button::new("👋"))
+                    .add(
+                        PillButton::new("Hi"), // .size(Vec2::splat(40.0))
+                                               // .icon_size(Vec2::splat(20.0)),
+                    )
                     .clicked()
                 {
                     hello_res.point_idx = 0;
