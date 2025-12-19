@@ -80,7 +80,9 @@ impl Widget for StyledSlider<'_> {
             SliderOrientation::Vertical => Vec2::new(self.handle_radius * 2.0 + 4.0, self.length),
         };
 
-        let (rect, response) = ui.allocate_exact_size(size, Sense::click_and_drag());
+        let (rect, mut response) = ui.allocate_exact_size(size, Sense::click_and_drag());
+
+        let old_value = *self.value;
 
         if response.dragged() || response.clicked() {
             if let Some(pointer_pos) = ui.input(|i| i.pointer.interact_pos()) {
@@ -113,7 +115,7 @@ impl Widget for StyledSlider<'_> {
 
             let t = self.normalize(*self.value);
 
-            // Calculate rail rect (centered in allocated space)
+            // Draw rail
             let rail_rect = match self.orientation {
                 SliderOrientation::Horizontal => {
                     let center_y = rect.center().y;
@@ -145,7 +147,6 @@ impl Widget for StyledSlider<'_> {
 
             let rail_rounding = CornerRadius::same((self.thickness / 2.0) as u8);
 
-            // Draw rail background
             painter.rect_filled(rail_rect, rail_rounding, theme.surface_variant);
             painter.rect_stroke(
                 rail_rect,
@@ -154,7 +155,7 @@ impl Widget for StyledSlider<'_> {
                 egui::StrokeKind::Middle,
             );
 
-            // Draw trailing fill
+            // Trailing fill
             let fill_rect = match self.orientation {
                 SliderOrientation::Horizontal => egui::Rect::from_min_max(
                     rail_rect.min,
@@ -170,7 +171,6 @@ impl Widget for StyledSlider<'_> {
             };
             painter.rect_filled(fill_rect, rail_rounding, theme.primary);
 
-            // Calculate handle position
             let handle_center = match self.orientation {
                 SliderOrientation::Horizontal => {
                     Pos2::new(rail_rect.left() + t * rail_rect.width(), rect.center().y)
@@ -180,29 +180,21 @@ impl Widget for StyledSlider<'_> {
                 }
             };
 
-            // Determine handle colors based on state
-            let (handle_fill, handle_stroke) = if response.dragged() {
-                (theme.primary, theme.on_primary)
+            // Draw handle
+            let handle_color = if response.dragged() {
+                theme.primary
             } else if response.hovered() {
-                (theme.primary_container, theme.primary)
+                theme.primary_container
             } else {
-                (Color32::WHITE, theme.outline)
+                Color32::WHITE
             };
 
-            // Draw handle shadow
-            painter.circle_filled(
-                handle_center + Vec2::new(0.0, 1.0),
-                self.handle_radius,
-                Color32::from_black_alpha(30),
-            );
+            painter.circle_filled(handle_center, self.handle_radius, handle_color);
+            painter.circle_stroke(handle_center, self.handle_radius, Stroke::NONE);
+        }
 
-            // Draw handle
-            painter.circle_filled(handle_center, self.handle_radius, handle_fill);
-            painter.circle_stroke(
-                handle_center,
-                self.handle_radius,
-                Stroke::new(2.0, handle_stroke),
-            );
+        if *self.value != old_value {
+            response.mark_changed();
         }
 
         response

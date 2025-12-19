@@ -63,23 +63,23 @@ impl Theme {
 }
 
 /// M3-inspired color theme using #D8E1FF as base color.
-pub static DEFAULT_THEME: Theme = Theme {
-    // Primary: darker blue
-    primary: Color32::from_rgb(79, 107, 179),
+pub const DEFAULT_THEME: Theme = Theme {
+    // Primary: (darker)
+    primary: Color32::from_rgb(75, 80, 140),
     on_primary: Color32::from_rgb(255, 255, 255),
 
-    // Primary container: lighter blue (close to original)
-    primary_container: Color32::from_rgb(200, 213, 255),
-    on_primary_container: Color32::from_rgb(30, 50, 100),
+    // Primary container: #9b9ece (base)
+    primary_container: Color32::from_rgb(155, 158, 206),
+    on_primary_container: Color32::from_rgb(25, 28, 60),
 
-    // Surface: the original TOOLS_BG_COLOR
+    // Surface: #D8E1FF (lighter)
     surface: Color32::from_rgb(216, 225, 255),
     on_surface: Color32::from_rgb(28, 28, 35),
 
-    // Surface variant: slightly different surface
+    // Surface variant
     surface_variant: Color32::from_rgb(226, 232, 255),
 
-    // Outline colors
-    outline: Color32::from_rgb(120, 130, 160),
-    outline_variant: Color32::from_rgb(180, 190, 220),
+    // Outline variants
+    outline: Color32::from_rgb(100, 105, 145),
+    outline_variant: Color32::from_rgb(165, 170, 210),
 };

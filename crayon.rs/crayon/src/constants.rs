@@ -8,6 +8,7 @@ pub const CLEAR_COLOR: wgpu::Color = if cfg!(debug_assertions) {
         a: 1.0,
     }
 } else {
+    // #9B9EB4
     wgpu::Color {
         r: 155.0 / 255.,
         g: 158.0 / 255.,

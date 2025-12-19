@@ -37,7 +37,7 @@ impl Drawable for BrushSizeWidget {
         };
 
         egui::Window::new("Size Controls")
-            .fixed_pos(egui::pos2(8.0, 84.0))
+            .fixed_pos(egui::pos2(8.0, 108.0))
             .movable(false)
             .resizable(false)
             .title_bar(false)
@@ -65,7 +65,6 @@ impl Drawable for BrushSizeWidget {
                 }
 
                 if response.changed() {
-                    println!("{pointer_size:?}");
                     event_sender.send(ControllerEvent::UpdateBrush(BrushProperties {
                         pointer_size,
                         size: pointer_size * POINTER_TO_BRUSH_SIZE_MULTIPLE,
