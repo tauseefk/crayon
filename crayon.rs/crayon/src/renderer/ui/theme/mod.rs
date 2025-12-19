@@ -3,7 +3,7 @@ pub mod widgets;
 
 use egui::{Color32, CornerRadius, Stroke};
 
-/// M3-inspired color theme derived from TOOLS_BG_COLOR (#D8E1FF)
+/// M3-inspired color theme.
 #[derive(Clone, Copy)]
 pub struct Theme {
     pub primary: Color32,
@@ -62,7 +62,7 @@ impl Theme {
     }
 }
 
-/// Default theme derived from TOOLS_BG_COLOR (#D8E1FF)
+/// M3-inspired color theme using #D8E1FF as base color.
 pub static DEFAULT_THEME: Theme = Theme {
     // Primary: darker blue
     primary: Color32::from_rgb(79, 107, 179),

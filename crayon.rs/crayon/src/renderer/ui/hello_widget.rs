@@ -1,16 +1,17 @@
 use batteries::prelude::{Dot2D, screen_to_world_position, world_to_screen_position};
 use cgmath::Point2;
-use egui::Vec2;
 
 use crate::{
     app::{App, WindowResource},
-    constants::TOOLS_BG_COLOR,
     event_sender::EventSender,
     events::ControllerEvent,
-    renderer::ui::{
-        drawable::Drawable,
-        hello_points::HELLO_POINTS,
-        theme::widgets::{IconButton, PillButton},
+    renderer::{
+        brush::{POINTER_SIZE, POINTER_TO_BRUSH_SIZE_MULTIPLE},
+        ui::{
+            drawable::Drawable,
+            hello_points::HELLO_POINTS,
+            theme::widgets::{GLOBAL_PADDING, IconButton},
+        },
     },
     resource::{Resource, ResourceContext},
     state::State,
@@ -63,24 +64,14 @@ impl Drawable for HelloWidget {
         };
 
         egui::Window::new("Intro")
-            .fixed_pos(egui::pos2(8.0, 44.0))
+            .fixed_pos(egui::pos2(GLOBAL_PADDING, GLOBAL_PADDING))
             .movable(false)
             .resizable(false)
             .title_bar(false)
-            .frame(
-                egui::Frame::window(&ctx.style())
-                    .fill(TOOLS_BG_COLOR)
-                    .shadow(egui::epaint::Shadow::NONE),
-            )
+            .frame(egui::Frame::NONE)
             .show(ctx, |ui| {
                 let wave_icon = egui::include_image!("../../../assets/icons/wave.svg");
-                if ui
-                    .add(
-                        PillButton::new("Hi"), // .size(Vec2::splat(40.0))
-                                               // .icon_size(Vec2::splat(20.0)),
-                    )
-                    .clicked()
-                {
+                if ui.add(IconButton::new(wave_icon).text("Hi")).clicked() {
                     hello_res.point_idx = 0;
                     hello_res.is_animating = true;
                 }
@@ -100,7 +91,7 @@ impl Drawable for HelloWidget {
                     event_sender.send(ControllerEvent::BrushPoint {
                         dot: Dot2D {
                             position,
-                            radius: 0.06668,
+                            radius: POINTER_SIZE * POINTER_TO_BRUSH_SIZE_MULTIPLE,
                         },
                     });
                 }

@@ -65,6 +65,7 @@ impl Drawable for BrushSizeWidget {
                 }
 
                 if response.changed() {
+                    println!("{pointer_size:?}");
                     event_sender.send(ControllerEvent::UpdateBrush(BrushProperties {
                         pointer_size,
                         size: pointer_size * POINTER_TO_BRUSH_SIZE_MULTIPLE,

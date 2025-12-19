@@ -1,8 +1,14 @@
 use egui::{Color32, Image, ImageSource, Response, Sense, Stroke, StrokeKind, Ui, Vec2, Widget};
 
-use crate::renderer::ui::theme::DEFAULT_THEME;
+use crate::renderer::ui::theme::{
+    DEFAULT_THEME,
+    widgets::{FONT_SIZE, ICON_SIZE, PADDING},
+};
 
-/// A circular or pill-shaped button with an icon
+const MARGIN_RIGHT: f32 = 6.0;
+const SPACING: f32 = 8.0;
+
+/// A circular or pill-shaped button with an icon and optional text
 pub struct IconButton<'a> {
     icon: ImageSource<'a>,
     text: Option<&'a str>,
@@ -18,7 +24,10 @@ impl<'a> IconButton<'a> {
         Self {
             icon: icon.into(),
             text: None,
-            size: Vec2::splat(40.0),
+            size: Vec2::new(
+                ICON_SIZE + PADDING * 2.0 + MARGIN_RIGHT,
+                ICON_SIZE + PADDING * 2.0,
+            ),
             icon_size: Vec2::splat(20.0),
             circular: true,
             fill: None,
@@ -28,6 +37,7 @@ impl<'a> IconButton<'a> {
 
     pub fn text(mut self, text: &'a str) -> Self {
         self.text = Some(text);
+        self.circular = false;
         self
     }
 
@@ -41,17 +51,12 @@ impl<'a> IconButton<'a> {
         self
     }
 
-    pub fn circular(mut self, circular: bool) -> Self {
-        self.circular = circular;
-        self
-    }
-
-    pub fn fill(mut self, color: Color32) -> Self {
+    pub fn _fill(mut self, color: Color32) -> Self {
         self.fill = Some(color);
         self
     }
 
-    pub fn tint(mut self, color: Color32) -> Self {
+    pub fn _tint(mut self, color: Color32) -> Self {
         self.tint = Some(color);
         self
     }
@@ -59,7 +64,13 @@ impl<'a> IconButton<'a> {
 
 impl Widget for IconButton<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let (rect, response) = ui.allocate_exact_size(self.size, Sense::click());
+        let (rect, response) = ui.allocate_at_least(
+            Vec2 {
+                x: self.size.x + 20.,
+                y: self.size.y,
+            },
+            Sense::click(),
+        );
 
         if ui.is_rect_visible(rect) {
             let theme = &DEFAULT_THEME;
@@ -86,12 +97,7 @@ impl Widget for IconButton<'_> {
                 )
             };
 
-            // Rounding: circular or pill
-            let rounding = if self.circular {
-                rect.height() / 2.0
-            } else {
-                8.0
-            };
+            let rounding = rect.height() / 2.0;
 
             // Draw background
             painter.rect_filled(rect, rounding, bg_color);
@@ -104,13 +110,49 @@ impl Widget for IconButton<'_> {
                 StrokeKind::Outside,
             );
 
-            // Draw icon centered
-            let icon_rect = egui::Rect::from_center_size(rect.center(), self.icon_size);
-            let image = Image::new(self.icon.clone())
-                .tint(tint_color)
-                .fit_to_exact_size(self.icon_size);
+            // Draw icon and text
+            if let Some(text) = self.text {
+                // Calculate spacing and layout
+                let font_id = egui::FontId::proportional(FONT_SIZE);
 
-            image.paint_at(ui, icon_rect);
+                // Calculate text width using painter
+                let galley = painter.layout_no_wrap(text.to_string(), font_id.clone(), tint_color);
+                let text_width = galley.rect.width();
+
+                let content_width = self.icon_size.x + SPACING + text_width + MARGIN_RIGHT;
+
+                // Center the content horizontally
+                let content_start_x = rect.center().x - content_width / 2.0;
+
+                // Draw icon on the left
+                let icon_center =
+                    egui::pos2(content_start_x + self.icon_size.x / 2.0, rect.center().y);
+                let icon_rect = egui::Rect::from_center_size(icon_center, self.icon_size);
+                let image = Image::new(self.icon.clone())
+                    .tint(tint_color)
+                    .fit_to_exact_size(self.icon_size);
+                image.paint_at(ui, icon_rect);
+
+                // Draw text on the right
+                let text_pos = egui::pos2(
+                    content_start_x + self.icon_size.x + SPACING,
+                    rect.center().y,
+                );
+                painter.text(
+                    text_pos,
+                    egui::Align2::LEFT_CENTER,
+                    text,
+                    font_id,
+                    tint_color,
+                );
+            } else {
+                // icon-only
+                let icon_rect = egui::Rect::from_center_size(rect.center(), self.icon_size);
+                let image = Image::new(self.icon.clone())
+                    .tint(tint_color)
+                    .fit_to_exact_size(self.icon_size);
+                image.paint_at(ui, icon_rect);
+            }
         }
 
         response

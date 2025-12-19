@@ -40,11 +40,6 @@ impl<'a> StyledSlider<'a> {
         self
     }
 
-    pub fn horizontal(mut self) -> Self {
-        self.orientation = SliderOrientation::Horizontal;
-        self
-    }
-
     pub fn length(mut self, length: f32) -> Self {
         self.length = length;
         self
@@ -87,7 +82,6 @@ impl Widget for StyledSlider<'_> {
 
         let (rect, response) = ui.allocate_exact_size(size, Sense::click_and_drag());
 
-        // Handle input
         if response.dragged() || response.clicked() {
             if let Some(pointer_pos) = ui.input(|i| i.pointer.interact_pos()) {
                 let t = match self.orientation {
@@ -104,7 +98,6 @@ impl Widget for StyledSlider<'_> {
 
                 let mut new_value = self.denormalize(t);
 
-                // Apply stepping
                 if let Some(step) = self.step {
                     let step = step as f32;
                     new_value = (new_value / step).round() * step;

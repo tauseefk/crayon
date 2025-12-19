@@ -23,7 +23,7 @@ impl<'a> CircularColorPicker<'a> {
         self
     }
 
-    pub fn id_source(mut self, id: &'a str) -> Self {
+    pub fn _id_source(mut self, id: &'a str) -> Self {
         self.id_source = Some(id);
         self
     }
@@ -40,7 +40,6 @@ impl Widget for CircularColorPicker<'_> {
             let theme = &DEFAULT_THEME;
             let painter = ui.painter();
 
-            // Convert sRGB float to Color32
             let current_color = Color32::from_rgb(self.color[0], self.color[1], self.color[2]);
 
             // Determine border color based on state
@@ -50,7 +49,7 @@ impl Widget for CircularColorPicker<'_> {
                 theme.outline
             };
 
-            let border_width = if response.hovered() { 2.0 } else { 1.5 };
+            let border_width = 2.0;
 
             // Draw filled circle with current color
             painter.circle_filled(rect.center(), self.radius, current_color);
@@ -78,7 +77,7 @@ impl Widget for CircularColorPicker<'_> {
         // Show color picker popup
         Popup::from_response(&response).id(popup_id).show(|ui| {
             ui.set_min_width(200.0);
-            // color_picker::color_edit_button_srgb(ui, self.color);
+            color_picker::color_edit_button_srgb(ui, self.color);
         });
 
         response
