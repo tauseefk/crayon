@@ -51,9 +51,6 @@ impl Drawable for BrushSizeWidget {
                 let response = ui.add(
                     StyledSlider::new(&mut pointer_size, MIN_BRUSH_SIZE..=MAX_BRUSH_SIZE)
                         .vertical()
-                        .length(120.0)
-                        .thickness(8.0)
-                        .handle_radius(12.0)
                         .step_by(BRUSH_STEP_SIZE),
                 );
 

@@ -1,8 +1,9 @@
 use egui::{Align2, Color32, FontId, Response, Sense, Stroke, StrokeKind, Ui, Vec2, Widget};
 
-use crate::renderer::ui::theme::DEFAULT_THEME;
+use crate::renderer::ui::theme::{DEFAULT_THEME, widgets::FONT_SIZE};
 
 /// A pill-shaped button with rounded ends
+#[allow(dead_code)]
 pub struct PillButton<'a> {
     text: &'a str,
     min_size: Vec2,
@@ -11,6 +12,7 @@ pub struct PillButton<'a> {
 }
 
 impl<'a> PillButton<'a> {
+    #[allow(dead_code)]
     pub fn new(text: &'a str) -> Self {
         Self {
             text,
@@ -20,16 +22,19 @@ impl<'a> PillButton<'a> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn min_size(mut self, size: Vec2) -> Self {
         self.min_size = size;
         self
     }
 
+    #[allow(dead_code)]
     pub fn fill(mut self, color: Color32) -> Self {
         self.fill = Some(color);
         self
     }
 
+    #[allow(dead_code)]
     pub fn text_color(mut self, color: Color32) -> Self {
         self.text_color = Some(color);
         self
@@ -44,7 +49,6 @@ impl Widget for PillButton<'_> {
             let theme = &DEFAULT_THEME;
             let painter = ui.painter();
 
-            // Determine colors based on interaction state
             let (bg_color, text_color, stroke_color) = if response.is_pointer_button_down_on() {
                 (
                     self.fill.unwrap_or(theme.primary),
@@ -65,13 +69,10 @@ impl Widget for PillButton<'_> {
                 )
             };
 
-            // Full pill rounding (half of height)
             let rounding = rect.height() / 2.0;
 
-            // Draw background
             painter.rect_filled(rect, rounding, bg_color);
 
-            // Draw border
             painter.rect_stroke(
                 rect,
                 rounding,
@@ -79,8 +80,7 @@ impl Widget for PillButton<'_> {
                 StrokeKind::Outside,
             );
 
-            // Draw text centered
-            let font_id = FontId::new(14.0, egui::FontFamily::Proportional);
+            let font_id = FontId::new(FONT_SIZE, egui::FontFamily::Proportional);
             painter.text(
                 rect.center(),
                 Align2::CENTER_CENTER,

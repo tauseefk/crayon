@@ -41,22 +41,26 @@ impl<'a> IconButton<'a> {
         self
     }
 
+    #[allow(dead_code)]
     pub fn size(mut self, size: Vec2) -> Self {
         self.size = size;
         self
     }
 
+    #[allow(dead_code)]
     pub fn icon_size(mut self, size: Vec2) -> Self {
         self.icon_size = size;
         self
     }
 
-    pub fn _fill(mut self, color: Color32) -> Self {
+    #[allow(dead_code)]
+    pub fn fill(mut self, color: Color32) -> Self {
         self.fill = Some(color);
         self
     }
 
-    pub fn _tint(mut self, color: Color32) -> Self {
+    #[allow(dead_code)]
+    pub fn tint(mut self, color: Color32) -> Self {
         self.tint = Some(color);
         self
     }

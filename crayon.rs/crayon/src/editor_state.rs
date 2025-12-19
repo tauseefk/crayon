@@ -18,14 +18,6 @@ impl BrushColor {
         [self.r, self.g, self.b, self.a]
     }
 
-    pub fn to_srgb(self) -> [u8; 3] {
-        [
-            (self.r * 255.0) as u8,
-            (self.g * 255.0) as u8,
-            (self.b * 255.0) as u8,
-        ]
-    }
-
     pub fn to_egui_color(self) -> egui::Color32 {
         egui::Color32::from_rgba_unmultiplied(
             (self.r * 255.0) as u8,

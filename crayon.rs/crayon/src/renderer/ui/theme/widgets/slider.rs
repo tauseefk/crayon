@@ -4,14 +4,13 @@ use egui::{Color32, CornerRadius, Pos2, Response, Sense, Stroke, Ui, Vec2, Widge
 
 use crate::renderer::ui::theme::DEFAULT_THEME;
 
-/// Orientation for the slider
 #[derive(Clone, Copy, PartialEq)]
 pub enum SliderOrientation {
     Horizontal,
     Vertical,
 }
 
-/// A styled slider with trailing fill and larger handle
+/// A styled slider with trailing fill
 pub struct StyledSlider<'a> {
     value: &'a mut f32,
     range: RangeInclusive<f32>,
@@ -28,7 +27,7 @@ impl<'a> StyledSlider<'a> {
             value,
             range,
             orientation: SliderOrientation::Horizontal,
-            length: 100.0,
+            length: 200.0,
             thickness: 8.0,
             handle_radius: 12.0,
             step: None,
@@ -40,16 +39,19 @@ impl<'a> StyledSlider<'a> {
         self
     }
 
+    #[allow(dead_code)]
     pub fn length(mut self, length: f32) -> Self {
         self.length = length;
         self
     }
 
+    #[allow(dead_code)]
     pub fn thickness(mut self, thickness: f32) -> Self {
         self.thickness = thickness;
         self
     }
 
+    #[allow(dead_code)]
     pub fn handle_radius(mut self, radius: f32) -> Self {
         self.handle_radius = radius;
         self
