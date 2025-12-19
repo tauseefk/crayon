@@ -1,6 +1,12 @@
 use crate::{
-    app::App, constants::TOOLS_BG_COLOR, event_sender::EventSender, events::ControllerEvent,
-    renderer::ui::drawable::Drawable, resource::ResourceContext,
+    app::App,
+    event_sender::EventSender,
+    events::ControllerEvent,
+    renderer::ui::{
+        drawable::Drawable,
+        theme::widgets::{GLOBAL_PADDING, IconButton},
+    },
+    resource::ResourceContext,
 };
 
 pub struct ClearScreenWidget;
@@ -20,17 +26,14 @@ impl Drawable for ClearScreenWidget {
         let height = ctx.content_rect().height();
 
         egui::Window::new("Clear")
-            .fixed_pos(egui::pos2(8., height - 40.0))
+            .fixed_pos(egui::pos2(GLOBAL_PADDING, height - 56.0))
             .movable(false)
             .resizable(false)
             .title_bar(false)
-            .frame(
-                egui::Frame::window(&ctx.style())
-                    .fill(TOOLS_BG_COLOR)
-                    .shadow(egui::epaint::Shadow::NONE),
-            )
+            .frame(egui::Frame::NONE)
             .show(ctx, |ui| {
-                if ui.add_sized([40.0, 20.0], egui::Button::new("🗑")).clicked() {
+                let trash_icon = egui::include_image!("../../../assets/icons/trash.svg");
+                if ui.add(IconButton::new(trash_icon)).clicked() {
                     event_sender.send(ControllerEvent::ClearCanvas);
                 }
             });

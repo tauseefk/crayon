@@ -6,7 +6,10 @@ use crate::{
     editor_state::BrushProperties,
     event_sender::EventSender,
     events::ControllerEvent,
-    renderer::{brush::POINTER_TO_BRUSH_SIZE_MULTIPLE, ui::drawable::Drawable},
+    renderer::{
+        brush::POINTER_TO_BRUSH_SIZE_MULTIPLE,
+        ui::{drawable::Drawable, theme::widgets::StyledSlider},
+    },
     resource::ResourceContext,
     resources::brush_preview_state::BrushPreviewState,
     state::State,
@@ -34,7 +37,7 @@ impl Drawable for BrushSizeWidget {
         };
 
         egui::Window::new("Size Controls")
-            .fixed_pos(egui::pos2(8.0, 84.0))
+            .fixed_pos(egui::pos2(8.0, 108.0))
             .movable(false)
             .resizable(false)
             .title_bar(false)
@@ -46,12 +49,9 @@ impl Drawable for BrushSizeWidget {
             .show(ctx, |ui| {
                 let mut pointer_size = state.editor.brush_properties.pointer_size;
                 let response = ui.add(
-                    egui::Slider::new(&mut pointer_size, MIN_BRUSH_SIZE..=MAX_BRUSH_SIZE)
-                        .handle_shape(egui::style::HandleShape::Circle)
-                        .trailing_fill(true)
-                        .step_by(BRUSH_STEP_SIZE)
-                        .show_value(false)
-                        .vertical(),
+                    StyledSlider::new(&mut pointer_size, MIN_BRUSH_SIZE..=MAX_BRUSH_SIZE)
+                        .vertical()
+                        .step_by(BRUSH_STEP_SIZE),
                 );
 
                 if response.dragged() || response.has_focus() || response.changed() {

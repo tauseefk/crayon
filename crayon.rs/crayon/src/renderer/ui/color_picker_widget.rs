@@ -6,7 +6,10 @@ use crate::{
     editor_state::{BrushColor, BrushProperties},
     event_sender::EventSender,
     events::ControllerEvent,
-    renderer::ui::drawable::Drawable,
+    renderer::ui::{
+        drawable::Drawable,
+        theme::widgets::{CircularColorPicker, GLOBAL_PADDING},
+    },
     resource::ResourceContext,
     resources::brush_preview_state::BrushPreviewState,
     state::State,
@@ -33,7 +36,7 @@ impl Drawable for ColorPickerWidget {
         let current_color = &state.editor.brush_properties.color;
 
         egui::Window::new("Color Controls")
-            .fixed_pos(egui::pos2(8.0, 8.0))
+            .fixed_pos(egui::pos2(GLOBAL_PADDING, 56.0))
             .movable(false)
             .resizable(false)
             .title_bar(false)
@@ -43,8 +46,8 @@ impl Drawable for ColorPickerWidget {
                     .shadow(egui::epaint::Shadow::NONE),
             )
             .show(ctx, |ui| {
-                let mut color = current_color.to_srgb();
-                let response = ui.color_edit_button_srgb(&mut color);
+                let mut color = current_color.to_egui_color();
+                let response = ui.add(CircularColorPicker::new(&mut color));
 
                 if response.changed() || response.clicked() {
                     if let Some(mut preview_state) = app.write::<BrushPreviewState>() {
