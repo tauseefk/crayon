@@ -78,8 +78,11 @@ impl Widget for CircularColorPicker<'_> {
         }
 
         // Show color picker popup
-        Popup::from_response(&response).id(popup_id).show(|ui| {
-            ui.set_min_width(200.0);
+        let popup_response = Popup::from_response(&response).id(popup_id).show(|ui| {
+            ui.set_min_width(220.0);
+            ui.set_min_height(240.0);
+            ui.spacing_mut().slider_width = 220.0;
+
             let is_color_changed =
                 color_picker::color_picker_color32(ui, self.color, Alpha::Opaque);
 
@@ -87,6 +90,19 @@ impl Widget for CircularColorPicker<'_> {
                 response.mark_changed();
             }
         });
+
+        // Close popup when clicking outside
+        if let Some(inner_response) = popup_response {
+            if ui.input(|i| i.pointer.any_click()) {
+                let pointer_pos = ui.input(|i| i.pointer.hover_pos());
+                if let Some(pos) = pointer_pos {
+                    let popup_rect = inner_response.response.rect;
+                    if !popup_rect.contains(pos) && !rect.contains(pos) {
+                        Popup::close_id(ui.ctx(), popup_id);
+                    }
+                }
+            }
+        }
 
         response
     }
