@@ -1,16 +1,19 @@
-use egui::{Color32, Popup, Response, Sense, Stroke, Ui, Vec2, Widget, color_picker};
+use egui::{
+    Color32, Popup, Response, Sense, Stroke, Ui, Vec2, Widget,
+    color_picker::{self, Alpha},
+};
 
 use crate::renderer::ui::theme::DEFAULT_THEME;
 
 /// A circular color picker button that opens a color picker popup on click
 pub struct CircularColorPicker<'a> {
-    color: &'a mut [u8; 3],
+    color: &'a mut Color32,
     radius: f32,
     id_source: Option<&'a str>,
 }
 
 impl<'a> CircularColorPicker<'a> {
-    pub fn new(color: &'a mut [u8; 3]) -> Self {
+    pub fn new(color: &'a mut Color32) -> Self {
         Self {
             color,
             radius: 18.0,
@@ -32,7 +35,7 @@ impl<'a> CircularColorPicker<'a> {
 impl Widget for CircularColorPicker<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let size = Vec2::splat(self.radius * 2.0);
-        let (rect, response) = ui.allocate_exact_size(size, Sense::click());
+        let (rect, mut response) = ui.allocate_exact_size(size, Sense::click());
 
         let popup_id = ui.make_persistent_id(self.id_source.unwrap_or("color_picker_popup"));
 
@@ -77,7 +80,12 @@ impl Widget for CircularColorPicker<'_> {
         // Show color picker popup
         Popup::from_response(&response).id(popup_id).show(|ui| {
             ui.set_min_width(200.0);
-            color_picker::color_edit_button_srgb(ui, self.color);
+            let is_color_changed =
+                color_picker::color_picker_color32(ui, self.color, Alpha::Opaque);
+
+            if is_color_changed {
+                response.mark_changed();
+            }
         });
 
         response
