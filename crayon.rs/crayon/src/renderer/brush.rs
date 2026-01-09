@@ -2,7 +2,7 @@ use batteries::prelude::Dot2D;
 
 use crate::renderer::camera::Camera2D;
 
-pub const POINTER_SIZE: f32 = 30.0;
+pub const POINTER_SIZE: f32 = 20.0;
 
 #[cfg(target_arch = "wasm32")]
 pub const POINTER_TO_BRUSH_SIZE_MULTIPLE: f32 = 0.003;
