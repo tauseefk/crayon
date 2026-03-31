@@ -21,7 +21,7 @@ use crate::{
     resource::{Res, ResMut, Resource, ResourceContext},
     resources::{
         brush_point_queue::BrushPointQueue, brush_preview_state::BrushPreviewState,
-        canvas_state::CanvasContext, input_system::InputSystem,
+        canvas_state::CanvasContext, input_system::InputSystem, stroke_state::StrokeState,
     },
     state::State,
     system::{Schedule, System, SystemRegistry},
@@ -279,11 +279,17 @@ impl ApplicationHandler<CustomEvent> for App {
                     self.read::<RenderContext>(),
                 ) {
                     state.editor.update_brush(properties);
-                    canvas_ctx.update_brush(
-                        &render_ctx,
-                        properties.color.to_rgba_array(),
-                        properties.size,
-                    );
+                    canvas_ctx.update_brush(&render_ctx, properties.color.to_rgba_array());
+                }
+            }
+            CustomEvent::StrokeStart => {
+                if let Some(mut stroke_state) = self.write::<StrokeState>() {
+                    stroke_state.start();
+                }
+            }
+            CustomEvent::StrokeEnd => {
+                if let Some(mut stroke_state) = self.write::<StrokeState>() {
+                    stroke_state.end();
                 }
             }
             // Only used by WASM target

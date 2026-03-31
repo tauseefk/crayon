@@ -86,6 +86,10 @@ impl BrushController {
                     let was_mouse_down = self.is_mouse_down;
                     self.is_mouse_down = *state == ElementState::Pressed;
 
+                    if !was_mouse_down && self.is_mouse_down && !self.is_disabled {
+                        self.event_sender.send(ControllerEvent::StrokeStart);
+                    }
+
                     if was_mouse_down && !self.is_mouse_down {
                         // Process final point with is_last=true for stroke end
                         let final_points = self.point_processor.process_point(StrokeDot2D {
@@ -104,6 +108,7 @@ impl BrushController {
                         }
 
                         self.point_processor.clear();
+                        self.event_sender.send(ControllerEvent::StrokeEnd);
                     }
                 }
             }

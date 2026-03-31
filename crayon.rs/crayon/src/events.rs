@@ -21,6 +21,8 @@ pub enum ControllerEvent {
     },
     ClearCanvas,
     UpdateBrush(BrushProperties),
+    StrokeStart,
+    StrokeEnd,
 }
 
 pub enum CustomEvent {
@@ -41,4 +43,6 @@ pub enum CustomEvent {
     },
     ClearCanvas,
     UpdateBrush(BrushProperties),
+    StrokeStart,
+    StrokeEnd,
 }
