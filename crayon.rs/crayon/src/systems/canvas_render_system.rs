@@ -49,6 +49,7 @@ impl System for CanvasRenderSystem {
             render_pass.set_pipeline(&canvas.camera_pipeline);
             render_pass.set_bind_group(0, &canvas.camera_vertex_bind_group, &[]);
             render_pass.set_bind_group(1, camera_bind_group, &[]);
+            render_pass.set_bind_group(2, &canvas.stroke_layer_bind_group, &[]);
             render_pass.set_vertex_buffer(0, canvas.camera_vertex_buffer.slice(..));
             render_pass.set_index_buffer(
                 canvas.camera_index_buffer.slice(..),

@@ -10,7 +10,7 @@ impl CRRenderPipeline {
         shader: &wgpu::ShaderModule,
         format: wgpu::TextureFormat,
         buffers: &[wgpu::VertexBufferLayout<'static>],
-        blend: bool,
+        blend: Option<wgpu::BlendState>,
         label: &str,
     ) -> Self {
         let layout = CRRenderPipeline::create_pipeline_layout(device, bind_group_layouts, label);
@@ -42,15 +42,9 @@ impl CRRenderPipeline {
         shader: &wgpu::ShaderModule,
         format: wgpu::TextureFormat,
         buffers: &[wgpu::VertexBufferLayout<'static>],
-        blend: bool,
+        blend: Option<wgpu::BlendState>,
         label: &str,
     ) -> wgpu::RenderPipeline {
-        let blend = if blend {
-            Some(wgpu::BlendState::ALPHA_BLENDING)
-        } else {
-            Some(wgpu::BlendState::REPLACE)
-        };
-
         device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some(label),
             layout: Some(layout),

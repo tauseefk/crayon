@@ -74,27 +74,40 @@ impl Drawable for HelloWidget {
                 if ui.add(IconButton::new(wave_icon).text("Hi")).clicked() {
                     hello_res.point_idx = 0;
                     hello_res.is_animating = true;
+                    // Drive the same stroke lifecycle as pointer input so the animated
+                    // dabs get merged into the canvas.
+                    event_sender.send(ControllerEvent::StrokeStart);
                 }
             });
 
         if hello_res.is_animating {
+            let mut emitted = false;
             for _ in 0..20 {
-                if let Some(point) = hello_res.get_point_and_increment() {
-                    let window_size = window.0.inner_size();
-                    #[allow(clippy::cast_precision_loss)]
-                    let window_size = (window_size.width as f32, window_size.height as f32);
+                let Some(point) = hello_res.get_point_and_increment() else {
+                    break;
+                };
 
-                    let position = screen_to_world_position(point, window_size);
-                    let position = transform_point(position, &state.camera);
-                    let position = world_to_screen_position(position, window_size);
+                let window_size = window.0.inner_size();
+                #[allow(clippy::cast_precision_loss)]
+                let window_size = (window_size.width as f32, window_size.height as f32);
 
-                    event_sender.send(ControllerEvent::BrushPoint {
-                        dot: Dot2D {
-                            position,
-                            radius: POINTER_SIZE * POINTER_TO_BRUSH_SIZE_MULTIPLE,
-                        },
-                    });
-                }
+                let position = screen_to_world_position(point, window_size);
+                let position = transform_point(position, &state.camera);
+                let position = world_to_screen_position(position, window_size);
+
+                event_sender.send(ControllerEvent::BrushPoint {
+                    dot: Dot2D {
+                        position,
+                        radius: POINTER_SIZE * POINTER_TO_BRUSH_SIZE_MULTIPLE,
+                    },
+                });
+                emitted = true;
+            }
+
+            // No points left to emit: the animation finished, commit the stroke.
+            if !emitted {
+                hello_res.is_animating = false;
+                event_sender.send(ControllerEvent::StrokeEnd);
             }
         }
     }

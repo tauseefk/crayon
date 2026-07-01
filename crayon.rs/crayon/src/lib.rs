@@ -27,6 +27,7 @@ use crate::resource::ResourceContext;
 use crate::resources::brush_point_queue::BrushPointQueue;
 use crate::resources::brush_preview_state::BrushPreviewState;
 use crate::resources::frame_time::FrameTime;
+use crate::resources::stroke_state::StrokeState;
 use crate::system::{Schedule, SystemRegistry};
 use crate::systems::brush_preview_update_system::BrushPreviewUpdateSystem;
 use crate::systems::canvas_render_system::CanvasRenderSystem;
@@ -54,7 +55,8 @@ pub fn run() -> anyhow::Result<()> {
     app.insert_resource(FrameTime::new())
         .insert_resource(BrushPointQueue::new())
         .insert_resource(HelloResource::new())
-        .insert_resource(BrushPreviewState::new());
+        .insert_resource(BrushPreviewState::new())
+        .insert_resource(StrokeState::new());
 
     app.add_system(Schedule::PreUpdate, FrameAcquireSystem)
         .add_system(Schedule::Update, FrameTimeUpdateSystem)

@@ -38,6 +38,12 @@ impl EventSender {
                         ControllerEvent::UpdateBrush(properties) => {
                             let _ = proxy_clone.send_event(CustomEvent::UpdateBrush(properties));
                         }
+                        ControllerEvent::StrokeStart => {
+                            let _ = proxy_clone.send_event(CustomEvent::StrokeStart);
+                        }
+                        ControllerEvent::StrokeEnd => {
+                            let _ = proxy_clone.send_event(CustomEvent::StrokeEnd);
+                        }
                     }
                 }
             });
@@ -73,6 +79,12 @@ impl EventSender {
                 }
                 ControllerEvent::UpdateBrush(properties) => {
                     let _ = self.proxy.send_event(CustomEvent::UpdateBrush(properties));
+                }
+                ControllerEvent::StrokeStart => {
+                    let _ = self.proxy.send_event(CustomEvent::StrokeStart);
+                }
+                ControllerEvent::StrokeEnd => {
+                    let _ = self.proxy.send_event(CustomEvent::StrokeEnd);
                 }
             }
         }

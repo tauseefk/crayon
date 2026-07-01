@@ -23,13 +23,20 @@ fn vs_main(model: VertexInput) -> VertexOutput {
     return out;
 }
 
-@group(1) @binding(0)
-var t_diffuse: texture_2d<f32>;
+// Committed canvas
+@group(1) @binding(0) var t_canvas: texture_2d<f32>;
+@group(1) @binding(1) var s_canvas: sampler;
 
-@group(1) @binding(1)
-var s_diffuse: sampler;
+// In-progress stroke layer, premultiplied alpha
+@group(2) @binding(0) var t_stroke: texture_2d<f32>;
+@group(2) @binding(1) var s_stroke: sampler;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return textureSample(t_diffuse, s_diffuse, in.tex_coords);
+    let canvas = textureSample(t_canvas, s_canvas, in.tex_coords);
+    let stroke = textureSample(t_stroke, s_stroke, in.tex_coords);
+
+    let rgb = stroke.rgb + canvas.rgb * (1.0 - stroke.a);
+
+    return vec4<f32>(rgb, 1.0);
 }
