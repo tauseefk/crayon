@@ -268,7 +268,7 @@ impl ApplicationHandler<CustomEvent> for App {
                             position,
                             radius: dot.radius,
                         },
-                        state.camera.clone(),
+                        state.camera,
                     );
                 }
             }
@@ -321,7 +321,7 @@ impl ApplicationHandler<CustomEvent> for App {
 
     /// Window Event
     ///
-    /// On WASM target, the first resize event handles creation of RenderContext.
+    /// On WASM target, the first resize event handles creation of `RenderContext`.
     ///
     fn window_event(
         &mut self,

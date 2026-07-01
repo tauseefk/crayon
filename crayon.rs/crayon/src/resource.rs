@@ -29,7 +29,7 @@ impl<'w, T: Resource> Res<'w, T> {
     }
 }
 
-impl<'w, T: Resource> Deref for Res<'w, T> {
+impl<T: Resource> Deref for Res<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -62,7 +62,7 @@ impl<'w, T: Resource> ResMut<'w, T> {
     }
 }
 
-impl<'w, T: Resource> Deref for ResMut<'w, T> {
+impl<T: Resource> Deref for ResMut<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -70,7 +70,7 @@ impl<'w, T: Resource> Deref for ResMut<'w, T> {
     }
 }
 
-impl<'w, T: Resource> DerefMut for ResMut<'w, T> {
+impl<T: Resource> DerefMut for ResMut<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.guard.downcast_mut::<T>().expect("Type mismatch")
     }

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use winit::window::Window;
 
 use crate::renderer::render_context::RenderContext;
-use crate::renderer::ui::theme::{fonts, DEFAULT_THEME};
+use crate::renderer::ui::theme::{DEFAULT_THEME, fonts};
 use crate::resource::Resource;
 
 /// egui context excapsulation that's useful for rendering the UI.

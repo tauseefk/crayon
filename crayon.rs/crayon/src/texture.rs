@@ -35,11 +35,11 @@ impl CRTexture {
         });
 
         let view = texture.create_view(&TextureViewDescriptor {
-            label: Some(format!("{} View", label).as_str()),
+            label: Some(format!("{label} View").as_str()),
             ..wgpu::TextureViewDescriptor::default()
         });
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some(format!("{} Sampler", label).as_str()),
+            label: Some(format!("{label} Sampler").as_str()),
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,

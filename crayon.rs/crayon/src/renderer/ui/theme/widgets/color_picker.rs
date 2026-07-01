@@ -50,9 +50,9 @@ impl Widget for CircularColorPicker<'_> {
             // Darken color on hover
             let current_color = if response.hovered() {
                 Color32::from_rgb(
-                    (current_color[0] as f32 * 0.8) as u8,
-                    (current_color[1] as f32 * 0.8) as u8,
-                    (current_color[2] as f32 * 0.8) as u8,
+                    (f32::from(current_color[0]) * 0.8) as u8,
+                    (f32::from(current_color[1]) * 0.8) as u8,
+                    (f32::from(current_color[2]) * 0.8) as u8,
                 )
             } else {
                 current_color

@@ -31,10 +31,10 @@ impl BrushColor {
 impl From<egui::Color32> for BrushColor {
     fn from(color: egui::Color32) -> Self {
         Self {
-            r: color.r() as f32 / 255.0,
-            g: color.g() as f32 / 255.0,
-            b: color.b() as f32 / 255.0,
-            a: color.a() as f32 / 255.0,
+            r: f32::from(color.r()) / 255.0,
+            g: f32::from(color.g()) / 255.0,
+            b: f32::from(color.b()) / 255.0,
+            a: f32::from(color.a()) / 255.0,
         }
     }
 }

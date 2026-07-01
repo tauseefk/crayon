@@ -2,8 +2,8 @@ use crate::prelude::*;
 
 /// Converts world space coordinates to screen pixel position.
 ///
-/// x ranges  0.0 to window_width
-/// y ranges  0.0 to window_height
+/// x ranges  0.0 to `window_width`
+/// y ranges  0.0 to `window_height`
 #[must_use]
 pub const fn world_to_screen_position(
     position: Point2<f32>,

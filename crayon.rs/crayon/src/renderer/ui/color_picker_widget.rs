@@ -49,10 +49,10 @@ impl Drawable for ColorPickerWidget {
                 let mut color = current_color.to_egui_color();
                 let response = ui.add(CircularColorPicker::new(&mut color));
 
-                if response.changed() || response.clicked() {
-                    if let Some(mut preview_state) = app.write::<BrushPreviewState>() {
-                        preview_state.show_at_position(Point2 { x: 1., y: -1. });
-                    }
+                if (response.changed() || response.clicked())
+                    && let Some(mut preview_state) = app.write::<BrushPreviewState>()
+                {
+                    preview_state.show_at_position(Point2 { x: 1., y: -1. });
                 }
 
                 if response.changed() {

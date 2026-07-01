@@ -86,29 +86,29 @@ impl Widget for StyledSlider<'_> {
 
         let old_value = *self.value;
 
-        if response.dragged() || response.clicked() {
-            if let Some(pointer_pos) = ui.input(|i| i.pointer.interact_pos()) {
-                let t = match self.orientation {
-                    SliderOrientation::Horizontal => {
-                        let x = (pointer_pos.x - rect.left()) / rect.width();
-                        x.clamp(0.0, 1.0)
-                    }
-                    SliderOrientation::Vertical => {
-                        // Invert for vertical (top = max, bottom = min)
-                        let y = (rect.bottom() - pointer_pos.y) / rect.height();
-                        y.clamp(0.0, 1.0)
-                    }
-                };
-
-                let mut new_value = self.denormalize(t);
-
-                if let Some(step) = self.step {
-                    let step = step as f32;
-                    new_value = (new_value / step).round() * step;
+        if (response.dragged() || response.clicked())
+            && let Some(pointer_pos) = ui.input(|i| i.pointer.interact_pos())
+        {
+            let t = match self.orientation {
+                SliderOrientation::Horizontal => {
+                    let x = (pointer_pos.x - rect.left()) / rect.width();
+                    x.clamp(0.0, 1.0)
                 }
+                SliderOrientation::Vertical => {
+                    // Invert for vertical (top = max, bottom = min)
+                    let y = (rect.bottom() - pointer_pos.y) / rect.height();
+                    y.clamp(0.0, 1.0)
+                }
+            };
 
-                *self.value = new_value.clamp(*self.range.start(), *self.range.end());
+            let mut new_value = self.denormalize(t);
+
+            if let Some(step) = self.step {
+                let step = step as f32;
+                new_value = (new_value / step).round() * step;
             }
+
+            *self.value = new_value.clamp(*self.range.start(), *self.range.end());
         }
 
         if ui.is_rect_visible(rect) {
