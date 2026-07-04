@@ -2,7 +2,6 @@ use cgmath::{EuclideanSpace, Point2};
 use winit::{
     dpi::PhysicalPosition,
     event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent},
-    keyboard::{KeyCode, PhysicalKey},
 };
 
 use crate::{event_sender::EventSender, events::ControllerEvent, utils::zoom};
@@ -12,7 +11,6 @@ use crate::{event_sender::EventSender, events::ControllerEvent, utils::zoom};
 pub struct CameraController {
     event_sender: EventSender,
     is_mouse_down: bool,
-    is_super_pressed: bool,
     is_dragging: bool,
     /// Translation offset for camera
     /// persists between multiple panning operations
@@ -28,7 +26,6 @@ impl CameraController {
         CameraController {
             event_sender,
             is_dragging: false,
-            is_super_pressed: false,
             is_mouse_down: false,
             cursor_position: Point2::origin(),
             translation_offset: Point2::origin(),
@@ -36,18 +33,11 @@ impl CameraController {
         }
     }
 
-    pub fn process_event(&mut self, event: &WindowEvent) {
+    pub fn process_event(&mut self, event: &WindowEvent, is_super_pressed: bool) {
         match event {
-            WindowEvent::KeyboardInput { event, .. } => {
-                if event.physical_key == PhysicalKey::Code(KeyCode::SuperLeft)
-                    || event.physical_key == PhysicalKey::Code(KeyCode::SuperRight)
-                {
-                    self.is_super_pressed = event.state == ElementState::Pressed;
-                }
-            }
             WindowEvent::MouseWheel { delta, .. } => {
                 // if super isn't pressed camera control should be disabled
-                if !self.is_super_pressed {
+                if !is_super_pressed {
                     return;
                 }
 
@@ -71,13 +61,13 @@ impl CameraController {
             }
             WindowEvent::CursorMoved { position, .. } => {
                 // if super isn't pressed camera control should be disabled
-                if !self.is_super_pressed {
+                if !is_super_pressed {
                     return;
                 }
 
                 self.cursor_position = Point2::new(position.x as f32, position.y as f32);
 
-                if self.is_mouse_down && self.is_super_pressed {
+                if self.is_mouse_down {
                     self.is_dragging = true;
 
                     // keep offset local during drag operation
@@ -93,7 +83,7 @@ impl CameraController {
             }
             WindowEvent::MouseInput { state, button, .. } => {
                 // if super isn't pressed camera control should be disabled
-                if !self.is_super_pressed {
+                if !is_super_pressed {
                     return;
                 }
 

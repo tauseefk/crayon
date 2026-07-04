@@ -15,7 +15,6 @@ pub struct BrushController {
     event_sender: EventSender,
     is_mouse_down: bool,
     is_dragging: bool,
-    is_disabled: bool,
     brush_size: f32,
     brush_position: cgmath::Point2<f32>,
     point_processor: PointProcessor,
@@ -28,7 +27,6 @@ impl BrushController {
             event_sender,
             is_dragging: false,
             is_mouse_down: false,
-            is_disabled: false,
             brush_size: DEFAULT_BRUSH_SIZE,
             brush_position: Point2::origin(),
             point_processor,
@@ -36,17 +34,11 @@ impl BrushController {
     }
 
     // TODO: threading brush_size isn't the cleanest approach
-    pub fn process_event(&mut self, event: &WindowEvent, brush_size: f32) {
+    pub fn process_event(&mut self, event: &WindowEvent, brush_size: f32, is_super_pressed: bool) {
         self.brush_size = brush_size;
         match event {
             WindowEvent::KeyboardInput { event, .. } => {
-                if event.physical_key == PhysicalKey::Code(KeyCode::SuperLeft)
-                    || event.physical_key == PhysicalKey::Code(KeyCode::SuperRight)
-                {
-                    self.is_disabled = event.state == ElementState::Pressed;
-                }
-
-                if self.is_disabled
+                if is_super_pressed
                     && event.physical_key == PhysicalKey::Code(KeyCode::KeyR)
                     && event.state.is_pressed()
                 {
@@ -56,7 +48,7 @@ impl BrushController {
             WindowEvent::CursorMoved { position, .. } => {
                 self.is_dragging = self.is_mouse_down;
 
-                if !self.is_dragging || self.is_disabled {
+                if !self.is_dragging || is_super_pressed {
                     return;
                 }
 
@@ -86,7 +78,7 @@ impl BrushController {
                     let was_mouse_down = self.is_mouse_down;
                     self.is_mouse_down = *state == ElementState::Pressed;
 
-                    if !was_mouse_down && self.is_mouse_down && !self.is_disabled {
+                    if !was_mouse_down && self.is_mouse_down && !is_super_pressed {
                         self.event_sender.send(ControllerEvent::StrokeStart);
                     }
 
