@@ -1,6 +1,20 @@
 use crate::events::ControllerEvent;
 use crate::{events::CustomEvent, resource::Resource};
 
+impl From<ControllerEvent> for CustomEvent {
+    fn from(event: ControllerEvent) -> Self {
+        match event {
+            ControllerEvent::BrushPoint { dot } => CustomEvent::BrushPoint { dot },
+            ControllerEvent::CameraMove { position } => CustomEvent::CameraMove { position },
+            ControllerEvent::CameraZoom { delta, .. } => CustomEvent::CameraZoom { delta },
+            ControllerEvent::ClearCanvas => CustomEvent::ClearCanvas,
+            ControllerEvent::UpdateBrush(properties) => CustomEvent::UpdateBrush(properties),
+            ControllerEvent::StrokeStart => CustomEvent::StrokeStart,
+            ControllerEvent::StrokeEnd => CustomEvent::StrokeEnd,
+        }
+    }
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 pub type ControllerEventSender = std::sync::mpsc::Sender<ControllerEvent>;
 
@@ -22,29 +36,7 @@ impl EventSender {
             let proxy_clone = event_loop_proxy.clone();
             std::thread::spawn(move || {
                 while let Ok(event) = rx.recv() {
-                    match event {
-                        ControllerEvent::BrushPoint { dot } => {
-                            let _ = proxy_clone.send_event(CustomEvent::BrushPoint { dot });
-                        }
-                        ControllerEvent::CameraMove { position } => {
-                            let _ = proxy_clone.send_event(CustomEvent::CameraMove { position });
-                        }
-                        ControllerEvent::CameraZoom { delta, .. } => {
-                            let _ = proxy_clone.send_event(CustomEvent::CameraZoom { delta });
-                        }
-                        ControllerEvent::ClearCanvas => {
-                            let _ = proxy_clone.send_event(CustomEvent::ClearCanvas);
-                        }
-                        ControllerEvent::UpdateBrush(properties) => {
-                            let _ = proxy_clone.send_event(CustomEvent::UpdateBrush(properties));
-                        }
-                        ControllerEvent::StrokeStart => {
-                            let _ = proxy_clone.send_event(CustomEvent::StrokeStart);
-                        }
-                        ControllerEvent::StrokeEnd => {
-                            let _ = proxy_clone.send_event(CustomEvent::StrokeEnd);
-                        }
-                    }
+                    let _ = proxy_clone.send_event(event.into());
                 }
             });
         }
@@ -64,29 +56,7 @@ impl EventSender {
     pub fn send(&self, event: ControllerEvent) {
         #[cfg(target_arch = "wasm32")]
         {
-            match event {
-                ControllerEvent::BrushPoint { dot } => {
-                    let _ = self.proxy.send_event(CustomEvent::BrushPoint { dot });
-                }
-                ControllerEvent::CameraMove { position } => {
-                    let _ = self.proxy.send_event(CustomEvent::CameraMove { position });
-                }
-                ControllerEvent::CameraZoom { delta, .. } => {
-                    let _ = self.proxy.send_event(CustomEvent::CameraZoom { delta });
-                }
-                ControllerEvent::ClearCanvas => {
-                    let _ = self.proxy.send_event(CustomEvent::ClearCanvas);
-                }
-                ControllerEvent::UpdateBrush(properties) => {
-                    let _ = self.proxy.send_event(CustomEvent::UpdateBrush(properties));
-                }
-                ControllerEvent::StrokeStart => {
-                    let _ = self.proxy.send_event(CustomEvent::StrokeStart);
-                }
-                ControllerEvent::StrokeEnd => {
-                    let _ = self.proxy.send_event(CustomEvent::StrokeEnd);
-                }
-            }
+            let _ = self.proxy.send_event(event.into());
         }
 
         // directly pass the event along for desktop environment
