@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "next_id": 5,
+  "artboards": [
+    {
+      "id": 1,
+      "name": "Left",
+      "position": [
+        0.0,
+        0.0
+      ],
+      "size": [
+        600.0,
+        400.0
+      ],
+      "layers": [
+        {
+          "id": 2,
+          "name": "Layer 1",
+          "offset": [
+            0.0,
+            0.0
+          ],
+          "visible": true,
+          "content": null,
+          "thumbhash": null
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Right",
+      "position": [
+        700.0,
+        100.0
+      ],
+      "size": [
+        400.0,
+        300.0
+      ],
+      "layers": [
+        {
+          "id": 4,
+          "name": "Layer 1",
+          "offset": [
+            0.0,
+            0.0
+          ],
+          "visible": true,
+          "content": null,
+          "thumbhash": null
+        }
+      ]
+    }
+  ]
+}

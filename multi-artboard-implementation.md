@@ -13,7 +13,7 @@ If you are picking this up cold, read this section first.
 Check a box off only when that stage's independent test passes **and** its jj bookmark is created. Stages are strictly ordered top-to-bottom.
 
 - [x] **S0** — `refactor/input-event-plumbing` — behavior-preserving refactors
-- [ ] **S1** — `feat/document-model` — serde document + loader + assets
+- [x] **S1** — `feat/document-model` — serde document + loader + assets
 - [ ] **T** — `chore/test-harness` — headless GPU + readback + fixtures + event capture
 - [ ] **S2** — `feat/scene-renderer-static` — world-px camera + quad compositor (no painting)
 - [ ] **S3** — `feat/layer-painting` — stroke→layer targeting + ping-pong-free merge
