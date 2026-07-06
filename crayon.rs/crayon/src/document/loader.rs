@@ -97,7 +97,7 @@ fn artboard_sized(img: &image::RgbaImage, (width, height): (u32, u32)) -> Vec<u8
 }
 
 /// Convert straight-alpha RGBA8 to premultiplied alpha in place.
-fn premultiply(pixels: &mut [u8]) {
+pub(crate) fn premultiply(pixels: &mut [u8]) {
     #[allow(clippy::cast_possible_truncation)]
     for px in pixels.chunks_exact_mut(4) {
         let alpha = u16::from(px[3]);

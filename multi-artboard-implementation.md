@@ -10,11 +10,12 @@ If you are picking this up cold, read this section first.
 
 ### Progress checklist
 
+Implement each of the following steps in their own jj-vcs bookmarks, build subsections as jj-revisions, and move the bookmark up the stack as needed. Goal is to have proper checkpoints in case things need to be reverted. 
 Check a box off only when that stage's independent test passes **and** its jj bookmark is created. Stages are strictly ordered top-to-bottom.
 
 - [x] **S0** — `refactor/input-event-plumbing` — behavior-preserving refactors
 - [x] **S1** — `feat/document-model` — serde document + loader + assets
-- [ ] **T** — `chore/test-harness` — headless GPU + readback + fixtures + event capture
+- [x] **T** — `chore/test-harness` — headless GPU + readback + fixtures + event capture
 - [ ] **S2** — `feat/scene-renderer-static` — world-px camera + quad compositor (no painting)
 - [ ] **S3** — `feat/layer-painting` — stroke→layer targeting + ping-pong-free merge
 - [ ] **S4** — `feat/selection-input` — selection stack + bubble dispatch + move

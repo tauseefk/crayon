@@ -49,6 +49,15 @@ impl EventSender {
         }
     }
 
+    /// Test-only sender whose events are captured instead of relayed to the
+    /// event loop: the mpsc pair is created without the relay thread, so the
+    /// returned receiver holds everything `send` produces.
+    #[cfg(all(test, not(target_arch = "wasm32")))]
+    pub fn capturing() -> (Self, std::sync::mpsc::Receiver<ControllerEvent>) {
+        let (tx, rx) = std::sync::mpsc::channel();
+        (Self { channel: tx }, rx)
+    }
+
     /// This relays the controller events to appropriate channels
     ///
     /// Non-WASM targets have an added level of indirection of an mpsc channel which allows storing the events and replaying.
