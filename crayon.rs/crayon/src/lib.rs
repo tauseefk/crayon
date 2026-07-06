@@ -4,6 +4,8 @@ mod app;
 mod brush_controller;
 mod camera_controller;
 mod constants;
+#[allow(dead_code)]
+mod document;
 mod editor_state;
 mod event_sender;
 mod events;
