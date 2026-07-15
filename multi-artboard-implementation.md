@@ -17,7 +17,7 @@ Check a box off only when that stage's independent test passes **and** its jj bo
 - [x] **S1** — `feat/document-model` — serde document + loader + assets
 - [x] **T** — `chore/test-harness` — headless GPU + readback + fixtures + event capture
 - [x] **S2** — `feat/scene-renderer-static` — world-px camera + quad compositor (no painting)
-- [ ] **S3** — `feat/layer-painting` — stroke→layer targeting + ping-pong-free merge
+- [x] **S3** — `feat/layer-painting` — stroke→layer targeting + ping-pong-free merge
 - [ ] **S4** — `feat/selection-input` — selection stack + bubble dispatch + move
 - [ ] **S5** — `feat/layer-panel-ui` — egui artboard/layer panel + CRUD
 - [ ] **S6** — `feat/wasm-async-load` — wasm fetch path + full verification

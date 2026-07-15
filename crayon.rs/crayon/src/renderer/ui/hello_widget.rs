@@ -6,7 +6,7 @@ use crate::{
     event_sender::EventSender,
     events::ControllerEvent,
     renderer::{
-        brush::{POINTER_SIZE, POINTER_TO_BRUSH_SIZE_MULTIPLE},
+        brush::DEFAULT_BRUSH_SIZE,
         ui::{
             drawable::Drawable,
             hello_points::HELLO_POINTS,
@@ -89,7 +89,7 @@ impl Drawable for HelloWidget {
                 event_sender.send(ControllerEvent::BrushPoint {
                     dot: Dot2D {
                         position,
-                        radius: POINTER_SIZE * POINTER_TO_BRUSH_SIZE_MULTIPLE,
+                        radius: DEFAULT_BRUSH_SIZE,
                     },
                 });
                 emitted = true;

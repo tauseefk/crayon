@@ -14,9 +14,6 @@ impl BrushColor {
         Self { r, g, b, a }
     }
 
-    /// Unused until the paint stage (S3) re-plumbs the brush color into the
-    /// dab uniform.
-    #[allow(dead_code)]
     pub fn to_rgba_array(self) -> [f32; 4] {
         [self.r, self.g, self.b, self.a]
     }

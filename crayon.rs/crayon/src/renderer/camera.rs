@@ -113,8 +113,6 @@ impl Camera2D {
         scale_matrix * translation_matrix
     }
 
-    /// Consumed by the paint stage (S3) to place brush points in world space.
-    #[allow(dead_code)]
     pub fn screen_to_world(&self, screen: Point2<f32>) -> Point2<f32> {
         self.translation + (screen - self.viewport_center()) / self.scale
     }

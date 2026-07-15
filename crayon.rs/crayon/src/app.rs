@@ -1,4 +1,3 @@
-use batteries::prelude::{Dot2D, screen_to_ndc};
 use cgmath::{EuclideanSpace, Point2};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -294,38 +293,40 @@ impl ApplicationHandler<CustomEvent> for App {
                     preview_state.update_scale(delta);
                 }
             }
-            // TODO: cleanup the transformation code
             CustomEvent::BrushPoint { dot } => {
-                if let (Some(window), Some(state), Some(mut queue)) = (
-                    self.read::<WindowResource>(),
+                if let (Some(state), Some(stroke_state), Some(mut queue)) = (
                     self.read::<State>(),
+                    self.read::<StrokeState>(),
                     self.write::<BrushPointQueue>(),
                 ) {
-                    let window_size = window.0.inner_size();
-
-                    let position = screen_to_ndc(
-                        dot.position,
-                        #[allow(clippy::cast_precision_loss)]
-                        (window_size.width as f32, window_size.height as f32),
-                    );
-
-                    queue.write(
-                        Dot2D {
-                            position,
-                            radius: dot.radius,
-                        },
-                        state.camera,
-                    );
+                    // Raw screen px + camera snapshot + target captured at
+                    // enqueue time; PaintSystem does the transform chain.
+                    queue.write(dot, state.camera, stroke_state.target);
                 }
             }
             CustomEvent::UpdateBrush(properties) => {
-                if let Some(mut state) = self.write::<State>() {
+                if let (Some(mut state), Some(mut scene), Some(render_ctx)) = (
+                    self.write::<State>(),
+                    self.write::<SceneRenderer>(),
+                    self.read::<RenderContext>(),
+                ) {
                     state.editor.update_brush(properties);
+                    scene.update_brush(&render_ctx.queue, properties.color.to_rgba_array());
                 }
             }
             CustomEvent::StrokeStart => {
-                if let Some(mut stroke_state) = self.write::<StrokeState>() {
-                    stroke_state.start();
+                if let (Some(doc), Some(mut stroke_state)) =
+                    (self.read::<DocumentState>(), self.write::<StrokeState>())
+                {
+                    // No selection until S4: hardcode the target to the
+                    // topmost layer of the first artboard; drop the stroke
+                    // when there is none.
+                    let target = doc.document.artboards.first().and_then(|artboard| {
+                        artboard.layers.last().map(|layer| (artboard.id, layer.id))
+                    });
+                    if let Some(target) = target {
+                        stroke_state.start(target);
+                    }
                 }
             }
             CustomEvent::StrokeEnd => {
