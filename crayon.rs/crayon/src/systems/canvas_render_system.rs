@@ -2,7 +2,9 @@ use crate::{
     app::App,
     renderer::{frame_context::FrameContext, render_context::RenderContext},
     resource::ResourceContext,
-    resources::{document_state::DocumentState, scene_renderer::SceneRenderer},
+    resources::{
+        document_state::DocumentState, scene_renderer::SceneRenderer, stroke_state::StrokeState,
+    },
     state::State,
     system::System,
 };
@@ -13,13 +15,22 @@ pub struct CanvasRenderSystem;
 
 impl System for CanvasRenderSystem {
     fn run(&self, app: &App) {
-        let (Some(mut render_ctx), Some(frame_ctx), Some(mut scene), Some(doc), Some(state)) = (
+        let (
+            Some(mut render_ctx),
+            Some(frame_ctx),
+            Some(mut scene),
+            Some(doc),
+            Some(state),
+            Some(stroke_state),
+        ) = (
             app.write::<RenderContext>(),
             app.read::<FrameContext>(),
             app.write::<SceneRenderer>(),
             app.read::<DocumentState>(),
             app.read::<State>(),
-        ) else {
+            app.read::<StrokeState>(),
+        )
+        else {
             return;
         };
 
@@ -39,6 +50,7 @@ impl System for CanvasRenderSystem {
             (render_ctx.config.width, render_ctx.config.height),
             &doc.document,
             &state.camera,
+            stroke_state.active_target(),
         );
     }
 }

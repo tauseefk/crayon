@@ -1,4 +1,3 @@
-use batteries::prelude::world_to_screen_position;
 use egui::Pos2;
 
 use crate::{
@@ -30,16 +29,16 @@ impl Drawable for BrushPreviewWidget {
 
         let color = &state.editor.brush_properties.color;
         let ui_scale = preview_state.scale();
-        let radius = state.editor.brush_properties.pointer_size * ui_scale;
+        let radius = state.editor.brush_properties.pointer_size * ui_scale / ctx.pixels_per_point();
 
         let painter = ctx.debug_painter();
 
+        // The stored position is physical screen px; egui works in points.
         let position = preview_state.position();
-        let window_size = ctx.content_rect().size();
-        let position = world_to_screen_position(position, (window_size.x, window_size.y));
+        let pixels_per_point = ctx.pixels_per_point();
         let center = Pos2 {
-            x: position.x,
-            y: position.y,
+            x: position.x / pixels_per_point,
+            y: position.y / pixels_per_point,
         };
         painter.circle_filled(center, radius, color.to_egui_color());
 

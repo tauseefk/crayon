@@ -5,10 +5,13 @@
 
 struct DabUniform {
     color: vec4<f32>,
+    // Active layer size in px; updated per stroke.
+    layer_size: vec2<f32>,
 };
 
 @group(0) @binding(0) var<uniform> dab: DabUniform;
 
+// Per-instance data: xy = dab center in layer clip space, z = radius in layer px.
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) local: vec2<f32>,
@@ -32,10 +35,13 @@ fn vs_main(
 
     let corner = corners[vertex_index];
     let center = instance.xy;
-    let radius = instance.z;
+    let radius_px = instance.z;
+
+    // Per-axis px→clip conversion keeps dabs round on non-square layers.
+    let clip_offset = corner * radius_px * vec2<f32>(2.0 / dab.layer_size.x, 2.0 / dab.layer_size.y);
 
     var out: VertexOutput;
-    out.clip_position = vec4<f32>(center + corner * radius, 0.0, 1.0);
+    out.clip_position = vec4<f32>(center + clip_offset, 0.0, 1.0);
     out.local = corner;
 
     return out;
