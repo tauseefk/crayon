@@ -1,4 +1,5 @@
-pub const DEFAULT_CANVAS_ZOOM: f32 = 0.72;
+/// World px : screen px at boot — 1:1 (multi-artboard.md §2.2).
+pub const DEFAULT_CANVAS_ZOOM: f32 = 1.0;
 
 pub const CLEAR_COLOR: wgpu::Color = if cfg!(debug_assertions) {
     wgpu::Color {
