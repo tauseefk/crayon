@@ -84,9 +84,16 @@ impl Camera2D {
         self.scale = clamp::clamp_zoom(self.scale, delta);
     }
 
-    /// Pans by a screen-px drag delta so content follows the cursor 1:1 at any zoom.
-    pub fn pan_screen_delta(&mut self, delta: Vector2<f32>) {
-        self.translation -= delta / self.scale;
+    /// Pans by a world-px drag delta (content follows the cursor: dragging
+    /// right moves the viewed world point left).
+    pub fn pan_world_delta(&mut self, delta: Vector2<f32>) {
+        self.translation -= delta;
+    }
+
+    /// Screen-px drag delta → world px, so content follows the cursor 1:1 at
+    /// any zoom (§3.3: deltas are converted where the semantics live).
+    pub fn screen_delta_to_world(&self, delta: Vector2<f32>) -> Vector2<f32> {
+        delta / self.scale
     }
 
     /// World px are resize-invariant: a resize only changes how much world is visible.
@@ -188,7 +195,8 @@ mod tests {
     fn pan_follows_cursor_one_to_one() {
         let mut camera = camera(1.0, Point2::new(0.0, 0.0)); // scale 2.0
         let anchor = camera.world_to_screen(Point2::new(10.0, 10.0));
-        camera.pan_screen_delta(Vector2::new(40.0, -20.0));
+        // a 40,-20 screen drag = 20,-10 world px at scale 2
+        camera.pan_world_delta(camera.screen_delta_to_world(Vector2::new(40.0, -20.0)));
         let moved = camera.world_to_screen(Point2::new(10.0, 10.0));
         assert!((moved.x - (anchor.x + 40.0)).abs() < 1e-3);
         assert!((moved.y - (anchor.y - 20.0)).abs() < 1e-3);

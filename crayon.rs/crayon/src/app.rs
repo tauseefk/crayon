@@ -19,6 +19,7 @@ use crate::{
     document::{Document, loader::LoadedDocument},
     event_sender::EventSender,
     events::CustomEvent,
+    input::dispatch::DispatchEnv,
     renderer::{
         egui_context::EguiContext, frame_context::FrameContext, render_context::RenderContext,
     },
@@ -86,8 +87,8 @@ impl App {
             event_loop_proxy: event_loop_proxy.clone(),
         };
 
-        app.insert_resource(event_sender.clone());
-        app.insert_resource(InputSystem::new(event_sender));
+        app.insert_resource(event_sender);
+        app.insert_resource(InputSystem::new());
 
         app
     }
@@ -259,29 +260,60 @@ impl ApplicationHandler<CustomEvent> for App {
     /// This handles all `CustomEvent` instances.
     /// For the WASM target, it handles (renderer, canvas, state, etc) resource creation and insertion as well.
     ///
+    // one match arm per event variant; splitting would only scatter the dispatch
+    #[allow(clippy::too_many_lines)]
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: CustomEvent) {
         match event {
-            // Retargeted to the selected layer in S4; until then Cmd+R clears
-            // every layer. Handlers only push GpuOps — PaintSystem applies them.
-            CustomEvent::ClearCanvas => {
-                if let Some(mut doc) = self.write::<DocumentState>() {
-                    let ops: Vec<GpuOp> = doc
-                        .document
-                        .artboards
-                        .iter()
-                        .flat_map(|artboard| artboard.layers.iter())
-                        .map(|layer| GpuOp::ClearLayer { layer: layer.id })
-                        .collect();
-                    doc.gpu_dirty.extend(ops);
+            CustomEvent::CameraMove { world_delta } => {
+                if let Some(mut state) = self.write::<State>() {
+                    state.camera.pan_world_delta(world_delta);
                 }
             }
-            CustomEvent::CameraMove { position } => {
-                if let Some(mut state) = self.write::<State>() {
-                    // The controller reports an accumulated screen-px offset;
-                    // pan by the delta since the last event.
-                    let delta = position - state.pan_offset;
-                    state.pan_offset = position;
-                    state.camera.pan_screen_delta(delta);
+            CustomEvent::SelectArtboard(artboard) => {
+                if let Some(mut doc) = self.write::<DocumentState>() {
+                    let DocumentState {
+                        document,
+                        selection,
+                        ..
+                    } = &mut *doc;
+                    selection.select_artboard(document, artboard);
+                }
+            }
+            CustomEvent::SelectLayer(artboard, layer) => {
+                if let Some(mut doc) = self.write::<DocumentState>() {
+                    doc.selection.select_layer(artboard, layer);
+                }
+            }
+            CustomEvent::ClearSelection => {
+                if let Some(mut doc) = self.write::<DocumentState>() {
+                    doc.selection.clear();
+                }
+            }
+            // Move* are pure-CPU offset/position mutations: the quad origin
+            // changes next frame, zero GPU work (§3.4).
+            CustomEvent::MoveLayer { layer, world_delta } => {
+                if let Some(mut doc) = self.write::<DocumentState>()
+                    && let Some(layer) = doc.document.find_layer_mut(layer)
+                {
+                    layer.offset[0] += world_delta.x;
+                    layer.offset[1] += world_delta.y;
+                }
+            }
+            CustomEvent::MoveArtboard {
+                artboard,
+                world_delta,
+            } => {
+                if let Some(mut doc) = self.write::<DocumentState>()
+                    && let Some(artboard) = doc.document.artboard_mut(artboard)
+                {
+                    artboard.position[0] += world_delta.x;
+                    artboard.position[1] += world_delta.y;
+                }
+            }
+            // Handlers only push GpuOps — PaintSystem applies them.
+            CustomEvent::ClearLayer { layer } => {
+                if let Some(mut doc) = self.write::<DocumentState>() {
+                    doc.gpu_dirty.push(GpuOp::ClearLayer { layer });
                 }
             }
             CustomEvent::CameraZoom { delta } => {
@@ -318,13 +350,9 @@ impl ApplicationHandler<CustomEvent> for App {
                 if let (Some(doc), Some(mut stroke_state)) =
                     (self.read::<DocumentState>(), self.write::<StrokeState>())
                 {
-                    // No selection until S4: hardcode the target to the
-                    // topmost layer of the first artboard; drop the stroke
-                    // when there is none.
-                    let target = doc.document.artboards.first().and_then(|artboard| {
-                        artboard.layers.last().map(|layer| (artboard.id, layer.id))
-                    });
-                    if let Some(target) = target {
+                    // The stroke targets the selected layer; dropped when
+                    // there is none (§3.4).
+                    if let Some(target) = doc.selection.selected_layer() {
                         stroke_state.start(target);
                     }
                 }
@@ -434,24 +462,56 @@ impl ApplicationHandler<CustomEvent> for App {
                     }
                 }
 
-                if let (Some(mut input_system), Some(state)) =
-                    (self.write::<InputSystem>(), self.read::<State>())
-                {
-                    input_system.process_event(&event, state.editor.brush_properties.size);
-                }
-
+                // Esc pops one selection frame; at [Global] already → exit
+                // the app (§3.3). Handled outside the dispatcher: it needs
+                // the event loop and mutable selection access.
                 if let WindowEvent::KeyboardInput {
                     event:
                         KeyEvent {
-                            physical_key: PhysicalKey::Code(code),
+                            physical_key: PhysicalKey::Code(KeyCode::Escape),
                             state: key_state,
+                            repeat: false,
                             ..
                         },
                     ..
                 } = event
-                    && let (KeyCode::Escape, true) = (code, key_state.is_pressed())
+                    && key_state.is_pressed()
                 {
-                    event_loop.exit();
+                    let popped = self
+                        .write::<DocumentState>()
+                        .is_some_and(|mut doc| doc.selection.pop());
+                    if !popped {
+                        event_loop.exit();
+                    }
+                    return;
+                }
+
+                if let (
+                    Some(mut input_system),
+                    Some(state),
+                    Some(doc),
+                    Some(stroke_state),
+                    Some(sender),
+                ) = (
+                    self.write::<InputSystem>(),
+                    self.read::<State>(),
+                    self.read::<DocumentState>(),
+                    self.read::<StrokeState>(),
+                    self.read::<EventSender>(),
+                ) {
+                    input_system.process_event(
+                        &event,
+                        DispatchEnv {
+                            // stamped by InputSystem from its tracked state
+                            modifiers: winit::keyboard::ModifiersState::default(),
+                            camera: state.camera,
+                            doc: &doc.document,
+                            selection: &doc.selection,
+                            brush_size: state.editor.brush_properties.size,
+                            stroke_active: stroke_state.active_target().is_some(),
+                            sender: &sender,
+                        },
+                    );
                 }
             }
         }

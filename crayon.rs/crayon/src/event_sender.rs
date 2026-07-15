@@ -5,9 +5,24 @@ impl From<ControllerEvent> for CustomEvent {
     fn from(event: ControllerEvent) -> Self {
         match event {
             ControllerEvent::BrushPoint { dot } => CustomEvent::BrushPoint { dot },
-            ControllerEvent::CameraMove { position } => CustomEvent::CameraMove { position },
-            ControllerEvent::CameraZoom { delta, .. } => CustomEvent::CameraZoom { delta },
-            ControllerEvent::ClearCanvas => CustomEvent::ClearCanvas,
+            ControllerEvent::CameraMove { world_delta } => CustomEvent::CameraMove { world_delta },
+            ControllerEvent::CameraZoom { delta } => CustomEvent::CameraZoom { delta },
+            ControllerEvent::SelectArtboard(artboard) => CustomEvent::SelectArtboard(artboard),
+            ControllerEvent::SelectLayer(artboard, layer) => {
+                CustomEvent::SelectLayer(artboard, layer)
+            }
+            ControllerEvent::ClearSelection => CustomEvent::ClearSelection,
+            ControllerEvent::MoveLayer { layer, world_delta } => {
+                CustomEvent::MoveLayer { layer, world_delta }
+            }
+            ControllerEvent::MoveArtboard {
+                artboard,
+                world_delta,
+            } => CustomEvent::MoveArtboard {
+                artboard,
+                world_delta,
+            },
+            ControllerEvent::ClearLayer { layer } => CustomEvent::ClearLayer { layer },
             ControllerEvent::UpdateBrush(properties) => CustomEvent::UpdateBrush(properties),
             ControllerEvent::StrokeStart => CustomEvent::StrokeStart,
             ControllerEvent::StrokeEnd => CustomEvent::StrokeEnd,
