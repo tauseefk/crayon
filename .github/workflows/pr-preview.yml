@@ -1,14 +1,18 @@
-name: Deploy
+name: PR Preview
 
 on:
-  push:
+  pull_request:
     branches:
       - main
 
 jobs:
-  build:
-    name: Build Crayon
+  build-and-preview:
+    name: Build and deploy preview
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      deployments: write
 
     steps:
       - name: Checkout repo
@@ -45,30 +49,11 @@ jobs:
         run: npm run build
         working-directory: ./www
 
-      - name: Upload build files
-        uses: actions/upload-artifact@v4
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
         with:
-          name: artifacts
-          path: ./www/dist
-
-  deploy:
-    name: Deploy Crayon
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: artifacts
-          path: ./www/dist
-
-      - name: Deploy
-        uses: peaceiris/actions-gh-pages@v4
-        if: github.ref == 'refs/heads/main'
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./www/dist
-    needs: build
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: crayon
+          directory: ./www/dist
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
