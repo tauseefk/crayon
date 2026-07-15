@@ -27,10 +27,13 @@ impl DocumentState {
     }
 }
 
-/// Structural changes to `SceneRenderer` textures. Create/destroy variants
-/// arrive with the selection and panel stages (S4/S5).
+/// Structural changes to `SceneRenderer` textures, applied by `PaintSystem`
+/// at the top of its run — before any pass is recorded, so scratch
+/// reallocation never happens mid-stroke (§2.8).
 pub enum GpuOp {
-    ClearLayer { layer: LayerId },
+    Create { layer: LayerId, size: (u32, u32) },
+    Destroy { layer: LayerId },
+    Clear { layer: LayerId },
 }
 
 impl Resource for DocumentState {}

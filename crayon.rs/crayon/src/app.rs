@@ -313,7 +313,82 @@ impl ApplicationHandler<CustomEvent> for App {
             // Handlers only push GpuOps — PaintSystem applies them.
             CustomEvent::ClearLayer { layer } => {
                 if let Some(mut doc) = self.write::<DocumentState>() {
-                    doc.gpu_dirty.push(GpuOp::ClearLayer { layer });
+                    doc.gpu_dirty.push(GpuOp::Clear { layer });
+                }
+            }
+            CustomEvent::AddArtboard => {
+                if let Some(mut doc) = self.write::<DocumentState>() {
+                    let DocumentState {
+                        document,
+                        selection,
+                        gpu_dirty,
+                    } = &mut *doc;
+                    let artboard_id = document.add_artboard();
+                    if let Some(artboard) = document.artboard(artboard_id) {
+                        let size = artboard.pixel_size();
+                        for layer in &artboard.layers {
+                            gpu_dirty.push(GpuOp::Create {
+                                layer: layer.id,
+                                size,
+                            });
+                        }
+                    }
+                    selection.select_artboard(document, artboard_id);
+                }
+            }
+            CustomEvent::DeleteArtboard(artboard) => {
+                if let (Some(mut doc), Some(mut stroke_state)) =
+                    (self.write::<DocumentState>(), self.write::<StrokeState>())
+                {
+                    // Abort before destroying: no merge into a dead id (§6).
+                    if stroke_state.target.is_some_and(|(owner, _)| owner == artboard) {
+                        stroke_state.abort();
+                    }
+                    if let Some(removed) = doc.document.remove_artboard(artboard) {
+                        for layer in &removed.layers {
+                            doc.gpu_dirty.push(GpuOp::Destroy { layer: layer.id });
+                        }
+                        doc.selection.on_artboard_deleted(artboard);
+                    }
+                }
+            }
+            CustomEvent::AddLayer(artboard) => {
+                if let Some(mut doc) = self.write::<DocumentState>() {
+                    let DocumentState {
+                        document,
+                        selection,
+                        gpu_dirty,
+                    } = &mut *doc;
+                    if let Some(layer) = document.add_layer(artboard)
+                        && let Some(owner) = document.artboard(artboard)
+                    {
+                        gpu_dirty.push(GpuOp::Create {
+                            layer,
+                            size: owner.pixel_size(),
+                        });
+                        selection.select_layer(artboard, layer);
+                    }
+                }
+            }
+            CustomEvent::DeleteLayer(layer) => {
+                if let (Some(mut doc), Some(mut stroke_state)) =
+                    (self.write::<DocumentState>(), self.write::<StrokeState>())
+                {
+                    // Abort before destroying: no merge into a dead id (§6).
+                    if stroke_state.target.is_some_and(|(_, target)| target == layer) {
+                        stroke_state.abort();
+                    }
+                    if doc.document.remove_layer(layer).is_some() {
+                        doc.gpu_dirty.push(GpuOp::Destroy { layer });
+                        doc.selection.on_layer_deleted(layer);
+                    }
+                }
+            }
+            CustomEvent::ToggleLayerVisibility(layer) => {
+                if let Some(mut doc) = self.write::<DocumentState>()
+                    && let Some(layer) = doc.document.find_layer_mut(layer)
+                {
+                    layer.visible = !layer.visible;
                 }
             }
             CustomEvent::CameraZoom { delta } => {

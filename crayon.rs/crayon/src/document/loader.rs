@@ -47,13 +47,14 @@ pub fn load_document(name: &str, max_texture_dim: u32) -> anyhow::Result<LoadedD
 }
 
 #[cfg(target_arch = "wasm32")]
-#[allow(clippy::unused_async)]
+#[allow(dead_code, clippy::unused_async)] // called from CanvasCreated in S6
 pub async fn load_document(_name: &str, _max_texture_dim: u32) -> anyhow::Result<LoadedDocument> {
     todo!("wasm document fetch lands in S6")
 }
 
 /// Structural validation shared by every load path:
 /// unique ids, sane sizes, artboard dimensions clamped to the device max texture dimension.
+#[cfg_attr(target_arch = "wasm32", allow(dead_code))] // wasm load path lands in S6
 fn validate(document: &mut Document, max_texture_dim: u32) -> anyhow::Result<()> {
     #[allow(clippy::cast_precision_loss)]
     let max_dim = max_texture_dim as f32;
@@ -81,6 +82,7 @@ fn validate(document: &mut Document, max_texture_dim: u32) -> anyhow::Result<()>
 }
 
 /// Crop/pad `img` into a `(width, height)` RGBA8 buffer with transparent padding, anchored at the top-left.
+#[cfg_attr(target_arch = "wasm32", allow(dead_code))] // wasm load path lands in S6
 fn artboard_sized(img: &image::RgbaImage, (width, height): (u32, u32)) -> Vec<u8> {
     let mut pixels = vec![0u8; width as usize * height as usize * 4];
     let copy_width = img.width().min(width) as usize * 4;
@@ -97,6 +99,7 @@ fn artboard_sized(img: &image::RgbaImage, (width, height): (u32, u32)) -> Vec<u8
 }
 
 /// Convert straight-alpha RGBA8 to premultiplied alpha in place.
+#[cfg_attr(target_arch = "wasm32", allow(dead_code))] // wasm load path lands in S6
 pub(crate) fn premultiply(pixels: &mut [u8]) {
     #[allow(clippy::cast_possible_truncation)]
     for px in pixels.chunks_exact_mut(4) {

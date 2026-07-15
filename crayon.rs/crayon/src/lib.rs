@@ -2,7 +2,6 @@
 
 mod app;
 mod constants;
-#[allow(dead_code)]
 mod document;
 mod editor_state;
 mod event_sender;

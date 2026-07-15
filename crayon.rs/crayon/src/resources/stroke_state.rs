@@ -33,6 +33,16 @@ impl StrokeState {
         }
     }
 
+    /// Aborts an in-flight stroke without merging — the target layer is being
+    /// deleted (§6). Dabs already stamped into the stroke scratch are
+    /// discarded by the clear at the next stroke's start.
+    pub fn abort(&mut self) {
+        self.active = false;
+        self.needs_clear = false;
+        self.needs_merge = false;
+        self.target = None;
+    }
+
     /// The stroke target while a stroke is being drawn — drives the live
     /// stroke quad in the scene pass.
     pub fn active_target(&self) -> Option<(ArtboardId, LayerId)> {
@@ -76,6 +86,18 @@ mod tests {
         assert!(stroke.take_needs_merge());
         assert_eq!(stroke.active_target(), None, "merge ends the stroke");
         assert_eq!(stroke.target, Some(TARGET), "target stays for the merge");
+    }
+
+    #[test]
+    fn abort_discards_the_pending_merge_and_target() {
+        let mut stroke = StrokeState::new();
+        stroke.start(TARGET);
+        stroke.end();
+        stroke.abort();
+        assert!(!stroke.take_needs_clear());
+        assert!(!stroke.take_needs_merge());
+        assert_eq!(stroke.target, None);
+        assert_eq!(stroke.active_target(), None);
     }
 
     #[test]

@@ -23,6 +23,13 @@ impl From<ControllerEvent> for CustomEvent {
                 world_delta,
             },
             ControllerEvent::ClearLayer { layer } => CustomEvent::ClearLayer { layer },
+            ControllerEvent::AddArtboard => CustomEvent::AddArtboard,
+            ControllerEvent::DeleteArtboard(artboard) => CustomEvent::DeleteArtboard(artboard),
+            ControllerEvent::AddLayer(artboard) => CustomEvent::AddLayer(artboard),
+            ControllerEvent::DeleteLayer(layer) => CustomEvent::DeleteLayer(layer),
+            ControllerEvent::ToggleLayerVisibility(layer) => {
+                CustomEvent::ToggleLayerVisibility(layer)
+            }
             ControllerEvent::UpdateBrush(properties) => CustomEvent::UpdateBrush(properties),
             ControllerEvent::StrokeStart => CustomEvent::StrokeStart,
             ControllerEvent::StrokeEnd => CustomEvent::StrokeEnd,
