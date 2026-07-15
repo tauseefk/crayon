@@ -11,7 +11,7 @@ use winit::{
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-use crate::document::loader::load_document;
+use crate::document::loader::{load_document, load_document_from_path};
 #[cfg(not(target_arch = "wasm32"))]
 use crate::resources::launch_options::LaunchOptions;
 use crate::{
@@ -136,6 +136,40 @@ impl App {
             .insert_resource(DocumentState::new(loaded.document))
             .insert_resource(app_state)
             .insert_resource(FrameContext::new());
+    }
+
+    /// Atomic document swap (§1.8): abort any in-flight stroke, rebuild
+    /// every layer texture, then replace the CPU document and selection —
+    /// no partial states. Shared by the `DocumentLoaded` arm and the native
+    /// Open path (§1.9).
+    fn apply_loaded_document(&self, loaded: LoadedDocument) {
+        if let (
+            Some(mut doc),
+            Some(mut scene),
+            Some(render_ctx),
+            Some(mut state),
+            Some(mut stroke_state),
+        ) = (
+            self.write::<DocumentState>(),
+            self.write::<SceneRenderer>(),
+            self.read::<RenderContext>(),
+            self.write::<State>(),
+            self.write::<StrokeState>(),
+        ) {
+            stroke_state.abort();
+            scene.hydrate(&render_ctx.device, &render_ctx.queue, &loaded);
+            state.camera.center_on(document_center(&loaded.document));
+            *doc = DocumentState::new(loaded.document);
+        }
+    }
+
+    /// Max 2D texture dimension of the live device; artboard sizes are
+    /// clamped to it on load. The wasm floor when no device exists yet.
+    fn max_texture_dim(&self) -> u32 {
+        self.read::<RenderContext>()
+            .map_or(2048, |render_ctx| {
+                render_ctx.device.limits().max_texture_dimension_2d
+            })
     }
 }
 
@@ -445,8 +479,8 @@ impl ApplicationHandler<CustomEvent> for App {
                 let window_size = window.inner_size();
                 let egui_ctx = EguiContext::new(window.clone(), &render_context);
 
-                // The async asset fetch lands in S6; until then wasm boots on
-                // the default document.
+                // The default document renders until the async fetch delivers
+                // `DocumentLoaded` (§1.8).
                 let loaded = LoadedDocument {
                     document: Document::default_document(),
                     layer_pixels: HashMap::new(),
@@ -456,11 +490,115 @@ impl ApplicationHandler<CustomEvent> for App {
                     loaded,
                     (window_size.width, window_size.height),
                 );
+
+                #[cfg(target_arch = "wasm32")]
+                {
+                    let max_texture_dim = render_context.device.limits().max_texture_dimension_2d;
+                    let proxy = self.event_loop_proxy.clone();
+                    wasm_bindgen_futures::spawn_local(async move {
+                        use crate::document::loader::{fetch_document, fetch_layer_pixels};
+
+                        // JSON first: one DocumentLoaded hydrates thumbhash
+                        // placeholders, a second swaps in the fetched PNG
+                        // content (§1.6). No `--doc` flag on web — always the
+                        // default document.
+                        let document = match fetch_document("default", max_texture_dim).await {
+                            Ok(document) => document,
+                            Err(error) => {
+                                log::warn!(
+                                    "failed to load document 'default': {error:#}; \
+                                     keeping the built-in default document"
+                                );
+                                return;
+                            }
+                        };
+                        let _ = proxy.send_event(CustomEvent::DocumentLoaded(Box::new(
+                            LoadedDocument {
+                                document: document.clone(),
+                                layer_pixels: HashMap::new(),
+                            },
+                        )));
+                        match fetch_layer_pixels(&document).await {
+                            Ok(layer_pixels) => {
+                                let _ = proxy.send_event(CustomEvent::DocumentLoaded(Box::new(
+                                    LoadedDocument {
+                                        document,
+                                        layer_pixels,
+                                    },
+                                )));
+                            }
+                            Err(error) => log::warn!(
+                                "failed to load layer content: {error:#}; \
+                                 thumbhash placeholders remain"
+                            ),
+                        }
+                    });
+                }
+
                 self.insert_resource(*render_context)
                     .insert_resource(egui_ctx)
                     .insert_resource(WindowResource(window));
 
                 self.run_update_systems();
+            }
+            CustomEvent::DocumentLoaded(loaded) => {
+                self.apply_loaded_document(*loaded);
+            }
+            CustomEvent::OpenDocument => {
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    // Sync + modal is deliberate: the arm runs on the main
+                    // thread (macOS requires the dialog there) and the app
+                    // pausing under a modal file dialog is standard.
+                    let picked = rfd::FileDialog::new()
+                        .add_filter("crayon document", &["json"])
+                        .pick_file();
+                    if let Some(path) = picked {
+                        match load_document_from_path(&path, self.max_texture_dim()) {
+                            Ok(loaded) => self.apply_loaded_document(loaded),
+                            Err(error) => log::warn!(
+                                "failed to open {}: {error:#}; \
+                                 keeping the current document",
+                                path.display()
+                            ),
+                        }
+                    }
+                }
+                #[cfg(target_arch = "wasm32")]
+                {
+                    let max_texture_dim = self.max_texture_dim();
+                    let proxy = self.event_loop_proxy.clone();
+                    wasm_bindgen_futures::spawn_local(async move {
+                        // Multi-select: the .json plus its .pngs — a browser
+                        // cannot follow relative paths from a picked file
+                        // (§1.9). PNGs left out degrade to thumbhash
+                        // placeholders.
+                        let Some(handles) = rfd::AsyncFileDialog::new()
+                            .add_filter("crayon document", &["json", "png"])
+                            .pick_files()
+                            .await
+                        else {
+                            return;
+                        };
+                        let mut files = Vec::with_capacity(handles.len());
+                        for handle in &handles {
+                            files.push((handle.file_name(), handle.read().await));
+                        }
+                        match crate::document::loader::load_document_from_files(
+                            &files,
+                            max_texture_dim,
+                        ) {
+                            Ok(loaded) => {
+                                let _ = proxy
+                                    .send_event(CustomEvent::DocumentLoaded(Box::new(loaded)));
+                            }
+                            Err(error) => log::warn!(
+                                "failed to open document: {error:#}; \
+                                 keeping the current document"
+                            ),
+                        }
+                    });
+                }
             }
         }
 

@@ -5,6 +5,7 @@ use wgpu::util::DeviceExt;
 
 use crate::constants::CLEAR_COLOR;
 use crate::document::loader::LoadedDocument;
+use crate::document::thumbhash::thumbhash_preview;
 use crate::document::{ArtboardId, Document, LayerId};
 use crate::editor_state::DEFAULT_BRUSH_COLOR;
 use crate::renderer::camera::{Camera2D, CameraUniform, WorldRect};
@@ -375,7 +376,10 @@ impl SceneRenderer {
     }
 
     /// Creates one texture per layer and uploads the decoded pixels
-    /// (multi-artboard.md §1.8). Layers without pixels stay transparent —
+    /// (multi-artboard.md §1.8). A layer with a thumbhash but no pixels gets
+    /// a placeholder: a texture at the tiny thumbhash resolution, upscaled by
+    /// the quad sampler at composite time (§1.6) — the wasm boot state while
+    /// PNG fetches are in flight. Layers with neither stay transparent —
     /// wgpu zero-initializes textures.
     pub fn hydrate(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, loaded: &LoadedDocument) {
         self.layers.clear();
@@ -384,27 +388,55 @@ impl SceneRenderer {
             let size = artboard.pixel_size();
             max_size = (max_size.0.max(size.0), max_size.1.max(size.1));
             for layer in &artboard.layers {
-                self.create_layer(device, layer.id, size);
                 if let Some(pixels) = loaded.layer_pixels.get(&layer.id) {
-                    let layer_gpu = &self.layers[&layer.id];
-                    queue.write_texture(
-                        layer_gpu.texture.texture.as_image_copy(),
-                        pixels,
-                        wgpu::TexelCopyBufferLayout {
-                            offset: 0,
-                            bytes_per_row: Some(4 * size.0),
-                            rows_per_image: None,
-                        },
-                        wgpu::Extent3d {
-                            width: size.0,
-                            height: size.1,
-                            depth_or_array_layers: 1,
-                        },
-                    );
+                    self.create_layer(device, layer.id, size);
+                    self.upload_layer_pixels(queue, layer.id, size, pixels);
+                } else if let Some((placeholder_size, pixels)) = layer
+                    .thumbhash
+                    .as_deref()
+                    .and_then(Self::placeholder_pixels)
+                {
+                    self.create_layer(device, layer.id, placeholder_size);
+                    self.upload_layer_pixels(queue, layer.id, placeholder_size, &pixels);
+                } else {
+                    self.create_layer(device, layer.id, size);
                 }
             }
         }
         self.ensure_scratch(device, max_size);
+    }
+
+    /// Decodes a layer's thumbhash into premultiplied RGBA at its native tiny
+    /// resolution. `None` on a corrupt hash — the layer falls back to
+    /// transparent.
+    fn placeholder_pixels(hash: &str) -> Option<((u32, u32), Vec<u8>)> {
+        let (width, height, mut pixels) = thumbhash_preview(hash).ok()?;
+        crate::document::loader::premultiply(&mut pixels);
+        Some(((u32::try_from(width).ok()?, u32::try_from(height).ok()?), pixels))
+    }
+
+    fn upload_layer_pixels(
+        &self,
+        queue: &wgpu::Queue,
+        id: LayerId,
+        size: (u32, u32),
+        pixels: &[u8],
+    ) {
+        let layer_gpu = &self.layers[&id];
+        queue.write_texture(
+            layer_gpu.texture.texture.as_image_copy(),
+            pixels,
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(4 * size.0),
+                rows_per_image: None,
+            },
+            wgpu::Extent3d {
+                width: size.0,
+                height: size.1,
+                depth_or_array_layers: 1,
+            },
+        );
     }
 
     /// Grows the shared stroke/merge scratch textures to cover `size`. Only
@@ -1028,6 +1060,49 @@ mod tests {
         assert_world_pixel(&pixels, size, &camera, (650.0, 200.0), clear_color_bytes());
         // Above the right artboard (world y < 100): clear color.
         assert_world_pixel(&pixels, size, &camera, (900.0, 50.0), clear_color_bytes());
+    }
+
+    /// A layer with a thumbhash but no decoded pixels hydrates as a tiny
+    /// placeholder texture the sampler stretches across the artboard quad
+    /// (§1.6) — the wasm boot state while PNG fetches are in flight.
+    #[test]
+    fn hydrate_falls_back_to_thumbhash_placeholder() {
+        use crate::document::thumbhash::generate_thumbhash;
+
+        let (device, queue) = headless_gpu();
+        let mut scene = SceneRenderer::new(&device, &queue, wgpu::TextureFormat::Rgba8Unorm);
+        let mut document = doc_two_artboards();
+        let hash = generate_thumbhash(&RED.repeat(600 * 400), 600, 400).unwrap();
+        document.artboards[0].layers[0].thumbhash = Some(hash);
+
+        let loaded = LoadedDocument {
+            document,
+            layer_pixels: HashMap::new(),
+        };
+        scene.hydrate(&device, &queue, &loaded);
+
+        // Placeholder texture at thumbhash resolution (≤ 32 px); the blank
+        // layer stays artboard-sized.
+        let placeholder = scene.layers[&LayerId(2)].size;
+        assert!(
+            placeholder.0 <= 32 && placeholder.1 <= 32,
+            "expected thumbhash-sized texture, got {placeholder:?}"
+        );
+        assert_eq!(scene.layers[&LayerId(4)].size, (400, 300));
+
+        // The placeholder covers the artboard. Thumbhash is lossy, so probe
+        // channel dominance rather than exact values.
+        let size = (220, 100);
+        let camera = overview_camera(size);
+        let pixels =
+            render_offscreen(&device, &queue, &mut scene, &loaded.document, &camera, size);
+        let screen = camera.world_to_screen(Point2::new(300.0, 200.0));
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let px = sample(&pixels, size, screen.x as u32, screen.y as u32);
+        assert!(
+            px[0] > 150 && px[0] > px[1].saturating_add(50) && px[0] > px[2].saturating_add(50),
+            "expected a red-dominant placeholder, got {px:?}"
+        );
     }
 
     #[test]

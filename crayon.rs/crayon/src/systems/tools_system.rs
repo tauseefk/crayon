@@ -10,12 +10,13 @@ use crate::renderer::ui::drawable::Drawable;
 use crate::renderer::ui::fps_widget::FpsWidget;
 use crate::renderer::ui::hello_widget::HelloWidget;
 use crate::renderer::ui::layer_panel_widget::LayerPanelWidget;
+use crate::renderer::ui::menu_bar_widget::MenuBarWidget;
 use crate::resource::ResourceContext;
 use crate::system::System;
 
 /// Renders Tools UI
 pub struct ToolsSystem {
-    tools: [Box<dyn Drawable>; 7],
+    tools: [Box<dyn Drawable>; 8],
 }
 
 impl ToolsSystem {
@@ -23,6 +24,7 @@ impl ToolsSystem {
         Self {
             tools: [
                 // Panels claim their screen area before floating windows.
+                Box::new(MenuBarWidget::new()),
                 Box::new(LayerPanelWidget::new()),
                 Box::new(BrushSizeWidget::new()),
                 Box::new(ColorPickerWidget::new()),

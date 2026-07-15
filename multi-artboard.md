@@ -265,6 +265,17 @@ Hydration is inline at each render-context creation site — **not** a `Schedule
 
 Texture formats: layer textures use the surface-format family (`Rgba8UnormSrgb` native / `Rgba8Unorm` wasm — same cfg split that already selects `dab_linear.wgsl` vs `dab.wgsl`). All layer + scratch textures must share one format so `copy_texture_to_texture` in the merge (§2.6) is legal.
 
+## 1.9 Opening documents (S7)
+
+An **Open…** button in a top menu bar (`egui::TopBottomPanel::top`, the future home for Save/Export) loads a document at runtime on both targets. It sends `ControllerEvent::OpenDocument`; the `CustomEvent::OpenDocument` arm runs the platform file dialog via the [`rfd`](https://crates.io/crates/rfd) crate:
+
+- **Native**: `rfd::FileDialog` (sync) picks one `.json` anywhere on disk — modal-blocking the event loop is correct here, and macOS requires the dialog on the main thread. Content PNGs resolve relative to the picked file's directory (`load_document_from_path`). The resulting `LoadedDocument` is applied inline through the same swap the `DocumentLoaded` arm uses.
+- **wasm**: `rfd::AsyncFileDialog::pick_files()` (multi-select) inside `spawn_local` — the user picks the `.json` **and** its `.png`s in one dialog, since a browser cannot follow relative paths from a picked file. `load_document_from_files` matches each layer's `content` file name against the picked set (in-memory bytes, target-independent, natively unit-testable). Completion is delivered as `CustomEvent::DocumentLoaded`, exactly like the boot fetch (§1.8).
+
+**Graceful degradation**: for *opened* documents (both targets), a missing or undecodable PNG logs a warning and skips that layer's pixels — the layer renders as its upscaled thumbhash placeholder (§1.6) instead of failing the whole open. The *boot* path keeps its strict fail → `default_document()` fallback. Opening replaces the current document without confirmation (no dirty tracking until save exists), and a cancelled dialog changes nothing.
+
+Known wasm risk: `AsyncFileDialog` clicks a hidden `<input type=file>`, which browsers allow only under transient user activation. Button click → proxy → `user_event` → `spawn_local` dispatches within the activation window on current Chrome/Firefox. If a browser blocks it, move the dialog into the widget's click handler (`spawn_local` in `MenuBarWidget`, delivering `DocumentLoaded` via a wasm-only proxy resource).
+
 ---
 
 # 2. Renderer Re-architecture

@@ -4,7 +4,7 @@ use batteries::prelude::Dot2D;
 use cgmath::Vector2;
 
 use crate::{
-    document::{ArtboardId, LayerId},
+    document::{ArtboardId, LayerId, loader::LoadedDocument},
     editor_state::BrushProperties,
     renderer::render_context::RenderContext,
 };
@@ -43,6 +43,8 @@ pub enum ControllerEvent {
     AddLayer(ArtboardId),
     DeleteLayer(LayerId),
     ToggleLayerVisibility(LayerId),
+    /// Run the platform file dialog and load the picked document (§1.9).
+    OpenDocument,
     UpdateBrush(BrushProperties),
     StrokeStart,
     StrokeEnd,
@@ -58,6 +60,12 @@ pub enum CustomEvent {
         render_context: Box<RenderContext>,
         window: Arc<winit::window::Window>,
     },
+    /// Async fetch completion, only sent on the WASM target (§1.8). Arrives
+    /// twice per load: thumbhash placeholders first, real PNG content second
+    /// (§1.6). Each delivery atomically replaces the document and every layer
+    /// texture.
+    #[allow(dead_code)]
+    DocumentLoaded(Box<LoadedDocument>),
     CameraMove {
         world_delta: Vector2<f32>,
     },
@@ -83,6 +91,7 @@ pub enum CustomEvent {
     AddLayer(ArtboardId),
     DeleteLayer(LayerId),
     ToggleLayerVisibility(LayerId),
+    OpenDocument,
     UpdateBrush(BrushProperties),
     StrokeStart,
     StrokeEnd,

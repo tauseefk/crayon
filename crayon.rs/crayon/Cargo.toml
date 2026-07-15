@@ -29,6 +29,7 @@ env_logger = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
 pollster = { workspace = true }
+rfd = { workspace = true }
 winit = { workspace = true }
 wgpu = { workspace = true }
 rasengan = "0.2.3"
@@ -40,5 +41,6 @@ console_log = { workspace = true }
 wgpu = { workspace = true, features = ["webgl"] }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
-web-sys = { workspace = true, features = ["Document", "Window", "Element"] }
+js-sys = { workspace = true }
+web-sys = { workspace = true, features = ["Document", "Window", "Element", "Response"] }
 web-time = "1.1"
