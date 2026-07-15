@@ -31,8 +31,11 @@ impl Drawable for BrushSizeWidget {
             return;
         };
 
+        // Below whatever the menu bar claimed (panels draw first).
+        let top = ctx.available_rect().top();
+
         egui::Window::new("Size Controls")
-            .fixed_pos(egui::pos2(8.0, 108.0))
+            .fixed_pos(egui::pos2(8.0, top + 108.0))
             .movable(false)
             .resizable(false)
             .title_bar(false)

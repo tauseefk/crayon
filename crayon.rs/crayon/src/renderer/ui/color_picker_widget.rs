@@ -35,8 +35,11 @@ impl Drawable for ColorPickerWidget {
 
         let current_color = &state.editor.brush_properties.color;
 
+        // Below whatever the menu bar claimed (panels draw first).
+        let top = ctx.available_rect().top();
+
         egui::Window::new("Color Controls")
-            .fixed_pos(egui::pos2(GLOBAL_PADDING, 56.0))
+            .fixed_pos(egui::pos2(GLOBAL_PADDING, top + 56.0))
             .movable(false)
             .resizable(false)
             .title_bar(false)
