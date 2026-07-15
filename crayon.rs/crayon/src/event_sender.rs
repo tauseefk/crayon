@@ -5,9 +5,32 @@ impl From<ControllerEvent> for CustomEvent {
     fn from(event: ControllerEvent) -> Self {
         match event {
             ControllerEvent::BrushPoint { dot } => CustomEvent::BrushPoint { dot },
-            ControllerEvent::CameraMove { position } => CustomEvent::CameraMove { position },
-            ControllerEvent::CameraZoom { delta, .. } => CustomEvent::CameraZoom { delta },
-            ControllerEvent::ClearCanvas => CustomEvent::ClearCanvas,
+            ControllerEvent::CameraMove { world_delta } => CustomEvent::CameraMove { world_delta },
+            ControllerEvent::CameraZoom { delta } => CustomEvent::CameraZoom { delta },
+            ControllerEvent::SelectArtboard(artboard) => CustomEvent::SelectArtboard(artboard),
+            ControllerEvent::SelectLayer(artboard, layer) => {
+                CustomEvent::SelectLayer(artboard, layer)
+            }
+            ControllerEvent::ClearSelection => CustomEvent::ClearSelection,
+            ControllerEvent::MoveLayer { layer, world_delta } => {
+                CustomEvent::MoveLayer { layer, world_delta }
+            }
+            ControllerEvent::MoveArtboard {
+                artboard,
+                world_delta,
+            } => CustomEvent::MoveArtboard {
+                artboard,
+                world_delta,
+            },
+            ControllerEvent::ClearLayer { layer } => CustomEvent::ClearLayer { layer },
+            ControllerEvent::AddArtboard => CustomEvent::AddArtboard,
+            ControllerEvent::DeleteArtboard(artboard) => CustomEvent::DeleteArtboard(artboard),
+            ControllerEvent::AddLayer(artboard) => CustomEvent::AddLayer(artboard),
+            ControllerEvent::DeleteLayer(layer) => CustomEvent::DeleteLayer(layer),
+            ControllerEvent::ToggleLayerVisibility(layer) => {
+                CustomEvent::ToggleLayerVisibility(layer)
+            }
+            ControllerEvent::OpenDocument => CustomEvent::OpenDocument,
             ControllerEvent::UpdateBrush(properties) => CustomEvent::UpdateBrush(properties),
             ControllerEvent::StrokeStart => CustomEvent::StrokeStart,
             ControllerEvent::StrokeEnd => CustomEvent::StrokeEnd,
@@ -47,6 +70,15 @@ impl EventSender {
             #[cfg(not(target_arch = "wasm32"))]
             channel: tx,
         }
+    }
+
+    /// Test-only sender whose events are captured instead of relayed to the
+    /// event loop: the mpsc pair is created without the relay thread, so the
+    /// returned receiver holds everything `send` produces.
+    #[cfg(all(test, not(target_arch = "wasm32")))]
+    pub fn capturing() -> (Self, std::sync::mpsc::Receiver<ControllerEvent>) {
+        let (tx, rx) = std::sync::mpsc::channel();
+        (Self { channel: tx }, rx)
     }
 
     /// This relays the controller events to appropriate channels

@@ -1,5 +1,3 @@
-use cgmath::Point2;
-
 use crate::{
     app::App,
     renderer::render_context::RenderContext,
@@ -7,30 +5,35 @@ use crate::{
     resources::{
         brush_point_queue::BrushPointQueue,
         brush_preview_state::BrushPreviewState,
-        canvas_state::{CanvasContext, DabInstance},
+        document_state::{DocumentState, GpuOp},
+        scene_renderer::{DabInstance, SceneRenderer},
         stroke_state::StrokeState,
     },
     system::System,
 };
 
-/// Accumulates queued brush points into the stroke layer.
+/// Accumulates queued brush points into the stroke scratch, targeting the
+/// stroke's layer (multi-artboard.md §2.5).
 ///
-/// The whole frame's dabs are stamped in a single instanced pass instead of one
-/// full-canvas pass + submit per point. The stroke layer is merged into the canvas once,
-/// on stroke end.
+/// Structural `GpuOp`s are drained first — before any pass is recorded — so
+/// scratch reallocation never happens mid-stroke. The whole frame's dabs are
+/// stamped in one instanced pass; the stroke merges into its layer once, on
+/// stroke end.
 pub struct PaintSystem;
 
 impl System for PaintSystem {
     fn run(&self, app: &App) {
         let (
             Some(mut render_ctx),
-            Some(mut canvas_ctx),
+            Some(mut scene),
+            Some(mut doc),
             Some(mut brush_point_queue),
             Some(mut preview_state),
             Some(mut stroke_state),
         ) = (
             app.write::<RenderContext>(),
-            app.write::<CanvasContext>(),
+            app.write::<SceneRenderer>(),
+            app.write::<DocumentState>(),
             app.write::<BrushPointQueue>(),
             app.write::<BrushPreviewState>(),
             app.write::<StrokeState>(),
@@ -38,55 +41,96 @@ impl System for PaintSystem {
         else {
             return;
         };
+        let render_ctx = &mut *render_ctx;
 
-        // Drain the queue into the reused per-instance dab staging buffer. Each dab's
-        // center is converted from screen NDC into canvas NDC using the camera captured
-        // when the point arrived.
+        // 0. structural ops first — never mid-stroke reallocation (§2.3)
+        for op in doc.gpu_dirty.drain(..) {
+            match op {
+                GpuOp::Create { layer, size } => {
+                    scene.ensure_scratch(&render_ctx.device, size);
+                    scene.create_layer(&render_ctx.device, layer, size);
+                }
+                GpuOp::Destroy { layer } => {
+                    scene.destroy_layer(layer);
+                }
+                GpuOp::Clear { layer } => {
+                    scene.clear_layer(&render_ctx.device, &render_ctx.queue, layer);
+                }
+            }
+        }
+
+        // 1. drain the queue → dabs in the target layer's clip space:
+        //    screen px → world px (per-point camera snapshot) → layer-local px → layer clip
         let mut last_position = None;
         {
-            let dabs = canvas_ctx.begin_dabs();
-            while let Some(point_data) = brush_point_queue.read() {
-                let position = point_data.dot.position;
-                last_position = Some(position);
+            let dabs = scene.begin_dabs();
+            while let Some(point) = brush_point_queue.read() {
+                last_position = Some(point.dot.position);
 
-                let inverse_view_projection = point_data.camera.build_2d_inverse_transform_matrix();
-                let center = inverse_view_projection
-                    * cgmath::Vector4::new(position.x, position.y, 0.0, 1.0);
+                let Some((artboard_id, layer_id)) = point.target else {
+                    continue;
+                };
+                // Skip points whose artboard/layer was deleted mid-flight.
+                let Some(artboard) = doc.document.artboard(artboard_id) else {
+                    continue;
+                };
+                let Some(layer) = artboard.layers.iter().find(|layer| layer.id == layer_id)
+                else {
+                    continue;
+                };
+
+                let world = point.camera.screen_to_world(point.dot.position);
+                let local_x = world.x - artboard.position[0] - layer.offset[0];
+                let local_y = world.y - artboard.position[1] - layer.offset[1];
+                #[allow(clippy::cast_precision_loss)]
+                let (width, height) = {
+                    let (w, h) = artboard.pixel_size();
+                    (w as f32, h as f32)
+                };
 
                 dabs.push(DabInstance {
-                    center: [center.x, center.y],
-                    radius: point_data.dot.radius,
+                    center: [
+                        local_x / (width * 0.5) - 1.0,
+                        1.0 - local_y / (height * 0.5),
+                    ],
+                    radius_px: point.dot.radius,
                 });
             }
         }
 
+        // The brush preview follows the cursor in screen px.
         if let Some(position) = last_position {
-            // transformation: [-1, 1] -> [0, 2]
-            preview_state.show_at_position(Point2 {
-                x: position.x + 1.,
-                y: position.y - 1.,
-            });
+            preview_state.show_at_position(position);
         }
 
         let clear = stroke_state.take_needs_clear();
         let merge = stroke_state.take_needs_merge();
 
-        let instance_count = canvas_ctx.upload_dabs(&render_ctx);
+        let instance_count = scene.upload_dabs(&render_ctx.queue);
 
         if instance_count == 0 && !clear && !merge {
             return;
         }
+
+        // GPU work only while the target layer still exists — a delete
+        // mid-stroke aborts accumulation and skips the merge.
+        let target_layer = stroke_state
+            .target
+            .and_then(|(_, layer_id)| scene.layers.get(&layer_id).map(|layer| (layer_id, layer.size)));
+        let Some((layer_id, layer_size)) = target_layer else {
+            return;
+        };
 
         let Some(encoder) = render_ctx.encoder.as_mut() else {
             return;
         };
 
         if clear || instance_count > 0 {
-            canvas_ctx.accumulate_stroke(encoder, clear, instance_count);
+            scene.accumulate_stroke(&render_ctx.queue, encoder, clear, instance_count, layer_size);
         }
 
         if merge {
-            canvas_ctx.record_merge_and_clear(encoder);
+            scene.merge_stroke_into_layer(&render_ctx.queue, encoder, layer_id);
         }
     }
 }
