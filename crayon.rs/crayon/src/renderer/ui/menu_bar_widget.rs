@@ -2,7 +2,10 @@ use crate::{
     app::App,
     event_sender::EventSender,
     events::ControllerEvent,
-    renderer::ui::drawable::Drawable,
+    renderer::ui::{
+        drawable::Drawable,
+        theme::widgets::{GLOBAL_PADDING, PillButton},
+    },
     resource::ResourceContext,
 };
 
@@ -22,12 +25,14 @@ impl Drawable for MenuBarWidget {
             return;
         };
 
-        egui::TopBottomPanel::top("menu").show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                if ui.button("Open…").clicked() {
-                    event_sender.send(ControllerEvent::OpenDocument);
-                }
+        egui::TopBottomPanel::top("menu")
+            .frame(egui::Frame::side_top_panel(&ctx.style()).inner_margin(GLOBAL_PADDING))
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    if ui.add(PillButton::new("Open…")).clicked() {
+                        event_sender.send(ControllerEvent::OpenDocument);
+                    }
+                });
             });
-        });
     }
 }

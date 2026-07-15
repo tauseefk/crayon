@@ -8,7 +8,13 @@ use crate::{
     document::{Artboard, Layer, LayerId, thumbhash::thumbhash_preview},
     event_sender::EventSender,
     events::ControllerEvent,
-    renderer::ui::{drawable::Drawable, theme::DEFAULT_THEME},
+    renderer::ui::{
+        drawable::Drawable,
+        theme::{
+            DEFAULT_THEME,
+            widgets::{GLOBAL_PADDING, PillButton},
+        },
+    },
     resource::ResourceContext,
     resources::document_state::DocumentState,
     state::State,
@@ -17,6 +23,11 @@ use crate::{
 const PANEL_WIDTH: f32 = 220.0;
 const PREVIEW_SIZE: egui::Vec2 = egui::Vec2::new(32.0, 24.0);
 const OUTLINE_STROKE: f32 = 2.0;
+/// Small square action buttons (`+`, `×`, visibility toggle).
+const ACTION_BUTTON_SIZE: egui::Vec2 = egui::Vec2::splat(24.0);
+const ACTION_BUTTON_ROUNDING: f32 = 6.0;
+/// Vertical gap between the panel's rows.
+const ROW_GAP: f32 = 8.0;
 
 /// Right side panel (multi-artboard.md §4): the artboard list and, for the
 /// selected artboard, its layer list — with thumbhash previews and
@@ -55,7 +66,10 @@ impl Drawable for LayerPanelWidget {
 
         egui::SidePanel::right("layers")
             .default_width(PANEL_WIDTH)
+            .frame(egui::Frame::side_top_panel(&ctx.style()).inner_margin(GLOBAL_PADDING))
             .show(ctx, |ui| {
+                ui.spacing_mut().item_spacing.y = ROW_GAP;
+
                 section_header(ui, "Artboards", || {
                     event_sender.send(ControllerEvent::AddArtboard);
                 });
@@ -132,12 +146,22 @@ impl Drawable for LayerPanelWidget {
     }
 }
 
+/// Small square rounded-rect button (`+`, `×`, visibility toggle).
+fn action_button(ui: &mut egui::Ui, label: &str) -> egui::Response {
+    ui.add(
+        PillButton::new(label)
+            .min_size(ACTION_BUTTON_SIZE)
+            .padding(egui::Vec2::splat(4.0))
+            .corner_radius(ACTION_BUTTON_ROUNDING),
+    )
+}
+
 /// Heading with a right-aligned `+` button.
 fn section_header(ui: &mut egui::Ui, title: &str, on_add: impl FnOnce()) {
     ui.horizontal(|ui| {
         ui.heading(title);
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if ui.button("+").clicked() {
+            if action_button(ui, "+").clicked() {
                 on_add();
             }
         });
@@ -156,11 +180,14 @@ fn artboard_row(
     ui.horizontal(|ui| {
         // Preview of the topmost layer stands in for the artboard.
         preview_slot(ui, ctx, previews, artboard.layers.last());
-        if ui.selectable_label(selected, &artboard.name).clicked() {
+        if ui
+            .add(PillButton::new(&artboard.name).selected(selected))
+            .clicked()
+        {
             event_sender.send(ControllerEvent::SelectArtboard(artboard.id));
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if ui.button("×").clicked() {
+            if action_button(ui, "×").clicked() {
                 event_sender.send(ControllerEvent::DeleteArtboard(artboard.id));
             }
         });
@@ -179,19 +206,21 @@ fn layer_row(
 ) {
     ui.horizontal(|ui| {
         let eye = if layer.visible { "●" } else { "○" };
-        if ui
-            .button(eye)
+        if action_button(ui, eye)
             .on_hover_text("Toggle visibility")
             .clicked()
         {
             event_sender.send(ControllerEvent::ToggleLayerVisibility(layer.id));
         }
         preview_slot(ui, ctx, previews, Some(layer));
-        if ui.selectable_label(selected, &layer.name).clicked() {
+        if ui
+            .add(PillButton::new(&layer.name).selected(selected))
+            .clicked()
+        {
             event_sender.send(ControllerEvent::SelectLayer(artboard.id, layer.id));
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if ui.button("×").clicked() {
+            if action_button(ui, "×").clicked() {
                 event_sender.send(ControllerEvent::DeleteLayer(layer.id));
             }
         });

@@ -58,8 +58,11 @@ impl Drawable for HelloWidget {
             return;
         };
 
+        // Below whatever the menu bar claimed (panels draw first).
+        let top = ctx.available_rect().top();
+
         egui::Window::new("Intro")
-            .fixed_pos(egui::pos2(GLOBAL_PADDING, GLOBAL_PADDING))
+            .fixed_pos(egui::pos2(GLOBAL_PADDING, top + GLOBAL_PADDING))
             .movable(false)
             .resizable(false)
             .title_bar(false)
