@@ -454,6 +454,12 @@ impl SceneRenderer {
         );
     }
 
+    /// Drops the layer's texture and bind group; a no-op for unknown ids.
+    /// The scratch textures never shrink (§2.8).
+    pub fn destroy_layer(&mut self, id: LayerId) {
+        self.layers.remove(&id);
+    }
+
     pub fn clear_layer(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, id: LayerId) {
         let Some(layer) = self.layers.get(&id) else {
             return;

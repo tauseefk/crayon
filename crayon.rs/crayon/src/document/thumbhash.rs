@@ -7,6 +7,9 @@ use base64::engine::general_purpose::STANDARD as BASE64;
 /// thumbhash requires input <= 100x100, so the image is downscaled first,
 /// preserving aspect ratio. `image::imageops::thumbnail` is a box filter —
 /// adequate for a placeholder hash.
+/// Only called from the ignored `generate_default_assets` test until saving
+/// documents lands — hashes regenerate at save time (§6).
+#[allow(dead_code)]
 pub fn generate_thumbhash(rgba: &[u8], width: u32, height: u32) -> anyhow::Result<String> {
     let img = image::RgbaImage::from_raw(width, height, rgba.to_vec())
         .context("rgba buffer does not match width * height * 4")?;
@@ -28,7 +31,7 @@ pub fn thumbhash_preview(hash_b64: &str) -> anyhow::Result<(usize, usize, Vec<u8
 
 /// Largest size that fits within `(max_width, max_height)` while preserving
 /// aspect ratio; never upscales.
-#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+#[allow(dead_code, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn fit_within(width: u32, height: u32, max_width: u32, max_height: u32) -> (u32, u32) {
     if width <= max_width && height <= max_height {
         return (width, height);

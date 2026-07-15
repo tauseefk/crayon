@@ -38,6 +38,11 @@ pub enum ControllerEvent {
     ClearLayer {
         layer: LayerId,
     },
+    AddArtboard,
+    DeleteArtboard(ArtboardId),
+    AddLayer(ArtboardId),
+    DeleteLayer(LayerId),
+    ToggleLayerVisibility(LayerId),
     UpdateBrush(BrushProperties),
     StrokeStart,
     StrokeEnd,
@@ -73,6 +78,11 @@ pub enum CustomEvent {
     ClearLayer {
         layer: LayerId,
     },
+    AddArtboard,
+    DeleteArtboard(ArtboardId),
+    AddLayer(ArtboardId),
+    DeleteLayer(LayerId),
+    ToggleLayerVisibility(LayerId),
     UpdateBrush(BrushProperties),
     StrokeStart,
     StrokeEnd,

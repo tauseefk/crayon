@@ -46,7 +46,14 @@ impl System for PaintSystem {
         // 0. structural ops first — never mid-stroke reallocation (§2.3)
         for op in doc.gpu_dirty.drain(..) {
             match op {
-                GpuOp::ClearLayer { layer } => {
+                GpuOp::Create { layer, size } => {
+                    scene.ensure_scratch(&render_ctx.device, size);
+                    scene.create_layer(&render_ctx.device, layer, size);
+                }
+                GpuOp::Destroy { layer } => {
+                    scene.destroy_layer(layer);
+                }
+                GpuOp::Clear { layer } => {
                     scene.clear_layer(&render_ctx.device, &render_ctx.queue, layer);
                 }
             }

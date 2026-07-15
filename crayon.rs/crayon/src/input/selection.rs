@@ -79,8 +79,6 @@ impl SelectionStack {
         })
     }
 
-    /// Consumed by the layer panel in S5 (selected-artboard highlight).
-    #[allow(dead_code)]
     pub fn selected_artboard(&self) -> Option<ArtboardId> {
         self.stack.iter().find_map(|ctx| match ctx {
             SelectionCtx::Artboard(artboard) => Some(*artboard),
@@ -88,9 +86,7 @@ impl SelectionStack {
         })
     }
 
-    /// Pops every frame that references the deleted artboard. Wired to the
-    /// delete events in S5.
-    #[allow(dead_code)]
+    /// Pops every frame that references the deleted artboard.
     pub fn on_artboard_deleted(&mut self, id: ArtboardId) {
         self.stack.retain(|ctx| match ctx {
             SelectionCtx::Artboard(artboard) | SelectionCtx::Layer(artboard, _) => *artboard != id,
@@ -98,9 +94,7 @@ impl SelectionStack {
         });
     }
 
-    /// Pops the layer frame when it references the deleted layer. Wired to
-    /// the delete events in S5.
-    #[allow(dead_code)]
+    /// Pops the layer frame when it references the deleted layer.
     pub fn on_layer_deleted(&mut self, id: LayerId) {
         self.stack.retain(|ctx| match ctx {
             SelectionCtx::Layer(_, layer) => *layer != id,
