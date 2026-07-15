@@ -4,7 +4,7 @@ use batteries::prelude::Dot2D;
 use cgmath::Vector2;
 
 use crate::{
-    document::{ArtboardId, LayerId},
+    document::{ArtboardId, LayerId, loader::LoadedDocument},
     editor_state::BrushProperties,
     renderer::render_context::RenderContext,
 };
@@ -58,6 +58,12 @@ pub enum CustomEvent {
         render_context: Box<RenderContext>,
         window: Arc<winit::window::Window>,
     },
+    /// Async fetch completion, only sent on the WASM target (§1.8). Arrives
+    /// twice per load: thumbhash placeholders first, real PNG content second
+    /// (§1.6). Each delivery atomically replaces the document and every layer
+    /// texture.
+    #[allow(dead_code)]
+    DocumentLoaded(Box<LoadedDocument>),
     CameraMove {
         world_delta: Vector2<f32>,
     },

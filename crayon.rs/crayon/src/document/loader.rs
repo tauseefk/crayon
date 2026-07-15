@@ -46,15 +46,102 @@ pub fn load_document(name: &str, max_texture_dim: u32) -> anyhow::Result<LoadedD
     })
 }
 
+/// Fetches and validates `assets/documents/{name}.json` — the structural half
+/// of the wasm load path (§1.7). PNG content arrives separately via
+/// [`fetch_layer_pixels`], so the caller can hydrate thumbhash placeholders
+/// from the document alone while the pixel fetches are in flight (§1.6).
 #[cfg(target_arch = "wasm32")]
-#[allow(dead_code, clippy::unused_async)] // called from CanvasCreated in S6
-pub async fn load_document(_name: &str, _max_texture_dim: u32) -> anyhow::Result<LoadedDocument> {
-    todo!("wasm document fetch lands in S6")
+pub async fn fetch_document(name: &str, max_texture_dim: u32) -> anyhow::Result<Document> {
+    let url = format!("./assets/documents/{name}.json");
+    let json = fetch::text(&url).await?;
+    let mut document: Document =
+        serde_json::from_str(&json).map_err(|error| anyhow::anyhow!("parsing {url}: {error}"))?;
+    validate(&mut document, max_texture_dim)?;
+    Ok(document)
+}
+
+/// Fetches and decodes every content layer's PNG, artboard-sized and
+/// premultiplied — same output contract as the native path.
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_layer_pixels(
+    document: &Document,
+) -> anyhow::Result<HashMap<LayerId, Vec<u8>>> {
+    let mut layer_pixels = HashMap::new();
+    for artboard in &document.artboards {
+        let size = artboard.pixel_size();
+        for layer in &artboard.layers {
+            let Some(content) = &layer.content else {
+                continue;
+            };
+            let url = format!("./assets/documents/{content}");
+            let bytes = fetch::bytes(&url).await?;
+            let img = image::load_from_memory(&bytes)
+                .map_err(|error| anyhow::anyhow!("decoding {url}: {error}"))?
+                .to_rgba8();
+            let mut pixels = artboard_sized(&img, size);
+            premultiply(&mut pixels);
+            layer_pixels.insert(layer.id, pixels);
+        }
+    }
+    Ok(layer_pixels)
+}
+
+/// `web_sys::fetch` wrappers. Errors cross the JS boundary as `JsValue`
+/// (neither `Send` nor `Error`), so they are stringified into `anyhow`
+/// immediately.
+#[cfg(target_arch = "wasm32")]
+mod fetch {
+    use anyhow::Context;
+    use wasm_bindgen::{JsCast, JsValue};
+    use wasm_bindgen_futures::JsFuture;
+    use web_sys::Response;
+
+    fn js_error(action: &str, url: &str, value: &JsValue) -> anyhow::Error {
+        anyhow::anyhow!("{action} {url}: {value:?}")
+    }
+
+    async fn response(url: &str) -> anyhow::Result<Response> {
+        let window = web_sys::window().context("no window")?;
+        let response = JsFuture::from(window.fetch_with_str(url))
+            .await
+            .map_err(|error| js_error("fetching", url, &error))?;
+        let response: Response = response
+            .dyn_into()
+            .map_err(|value| js_error("fetching", url, &value))?;
+        if !response.ok() {
+            anyhow::bail!("fetching {url}: HTTP {}", response.status());
+        }
+        Ok(response)
+    }
+
+    pub async fn text(url: &str) -> anyhow::Result<String> {
+        let response = response(url).await?;
+        let text = JsFuture::from(
+            response
+                .text()
+                .map_err(|error| js_error("reading", url, &error))?,
+        )
+        .await
+        .map_err(|error| js_error("reading", url, &error))?;
+        text.as_string()
+            .with_context(|| format!("reading {url}: response text is not a string"))
+    }
+
+    pub async fn bytes(url: &str) -> anyhow::Result<Vec<u8>> {
+        let response = response(url).await?;
+        let buffer = JsFuture::from(
+            response
+                .array_buffer()
+                .map_err(|error| js_error("reading", url, &error))?,
+        )
+        .await
+        .map_err(|error| js_error("reading", url, &error))?;
+        Ok(js_sys::Uint8Array::new(&buffer).to_vec())
+    }
 }
 
 /// Structural validation shared by every load path:
 /// unique ids, sane sizes, artboard dimensions clamped to the device max texture dimension.
-#[cfg_attr(target_arch = "wasm32", allow(dead_code))] // wasm load path lands in S6
 fn validate(document: &mut Document, max_texture_dim: u32) -> anyhow::Result<()> {
     #[allow(clippy::cast_precision_loss)]
     let max_dim = max_texture_dim as f32;
@@ -82,7 +169,6 @@ fn validate(document: &mut Document, max_texture_dim: u32) -> anyhow::Result<()>
 }
 
 /// Crop/pad `img` into a `(width, height)` RGBA8 buffer with transparent padding, anchored at the top-left.
-#[cfg_attr(target_arch = "wasm32", allow(dead_code))] // wasm load path lands in S6
 fn artboard_sized(img: &image::RgbaImage, (width, height): (u32, u32)) -> Vec<u8> {
     let mut pixels = vec![0u8; width as usize * height as usize * 4];
     let copy_width = img.width().min(width) as usize * 4;
@@ -99,7 +185,6 @@ fn artboard_sized(img: &image::RgbaImage, (width, height): (u32, u32)) -> Vec<u8
 }
 
 /// Convert straight-alpha RGBA8 to premultiplied alpha in place.
-#[cfg_attr(target_arch = "wasm32", allow(dead_code))] // wasm load path lands in S6
 pub(crate) fn premultiply(pixels: &mut [u8]) {
     #[allow(clippy::cast_possible_truncation)]
     for px in pixels.chunks_exact_mut(4) {

@@ -20,7 +20,7 @@ Check a box off only when that stage's independent test passes **and** its jj bo
 - [x] **S3** — `feat/layer-painting` — stroke→layer targeting + ping-pong-free merge
 - [x] **S4** — `feat/selection-input` — selection stack + bubble dispatch + move
 - [x] **S5** — `feat/layer-panel-ui` — egui artboard/layer panel + CRUD
-- [ ] **S6** — `feat/wasm-async-load` — wasm fetch path + full verification
+- [x] **S6** — `feat/wasm-async-load` — wasm fetch path + full verification
 
 **Use this list as you work.** At the start of a session, mirror the unchecked stages into your task tracker (the TodoWrite / task tool) and mark exactly one stage `in_progress` at a time. When a stage's test passes and its bookmark lands, tick its box **in this doc** (so the checked state survives across chats — the task tracker does not) and mark the task completed. Do not start the next stage until the current box is checked.
 

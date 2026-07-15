@@ -40,5 +40,6 @@ console_log = { workspace = true }
 wgpu = { workspace = true, features = ["webgl"] }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
-web-sys = { workspace = true, features = ["Document", "Window", "Element"] }
+js-sys = { workspace = true }
+web-sys = { workspace = true, features = ["Document", "Window", "Element", "Response"] }
 web-time = "1.1"

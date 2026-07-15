@@ -545,6 +545,7 @@ dependencies = [
  "env_logger",
  "futures",
  "image",
+ "js-sys",
  "log",
  "pollster",
  "rasengan",
