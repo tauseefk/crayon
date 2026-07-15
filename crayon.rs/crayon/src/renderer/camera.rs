@@ -80,13 +80,33 @@ impl Camera2D {
         self.translation = world;
     }
 
+    /// Center-anchored zoom. Production zoom goes through `zoom_by_at`; this
+    /// remains for tests that assert scale/clamp behavior directly.
+    #[cfg(test)]
     pub fn zoom_by(&mut self, delta: f32) {
         self.scale = clamp::clamp_zoom(self.scale, delta);
     }
 
-    /// Pans by a screen-px drag delta so content follows the cursor 1:1 at any zoom.
-    pub fn pan_screen_delta(&mut self, delta: Vector2<f32>) {
-        self.translation -= delta / self.scale;
+    /// Zoom by `delta` while keeping the world point under `screen` fixed on
+    /// screen (Figma-style zoom-to-cursor; the anchor is the gesture focus for
+    /// touch later). Solve for the translation that maps the pre-zoom anchor
+    /// world point back to the same screen point at the new scale.
+    pub fn zoom_by_at(&mut self, delta: f32, screen: Point2<f32>) {
+        let anchor_world = self.screen_to_world(screen);
+        self.scale = clamp::clamp_zoom(self.scale, delta);
+        self.translation = anchor_world + (self.viewport_center() - screen) / self.scale;
+    }
+
+    /// Pans by a world-px drag delta (content follows the cursor: dragging
+    /// right moves the viewed world point left).
+    pub fn pan_world_delta(&mut self, delta: Vector2<f32>) {
+        self.translation -= delta;
+    }
+
+    /// Screen-px drag delta → world px, so content follows the cursor 1:1 at
+    /// any zoom (§3.3: deltas are converted where the semantics live).
+    pub fn screen_delta_to_world(&self, delta: Vector2<f32>) -> Vector2<f32> {
+        delta / self.scale
     }
 
     /// World px are resize-invariant: a resize only changes how much world is visible.
@@ -188,7 +208,8 @@ mod tests {
     fn pan_follows_cursor_one_to_one() {
         let mut camera = camera(1.0, Point2::new(0.0, 0.0)); // scale 2.0
         let anchor = camera.world_to_screen(Point2::new(10.0, 10.0));
-        camera.pan_screen_delta(Vector2::new(40.0, -20.0));
+        // a 40,-20 screen drag = 20,-10 world px at scale 2
+        camera.pan_world_delta(camera.screen_delta_to_world(Vector2::new(40.0, -20.0)));
         let moved = camera.world_to_screen(Point2::new(10.0, 10.0));
         assert!((moved.x - (anchor.x + 40.0)).abs() < 1e-3);
         assert!((moved.y - (anchor.y - 20.0)).abs() < 1e-3);
@@ -202,6 +223,30 @@ mod tests {
         assert!((rect.max.x - (100.0 + 200.0)).abs() < 1e-3);
         assert!((rect.min.y - (100.0 - 150.0)).abs() < 1e-3);
         assert!((rect.max.y - (100.0 + 150.0)).abs() < 1e-3);
+    }
+
+    #[test]
+    fn zoom_at_cursor_keeps_anchor_stationary() {
+        let mut camera = camera(1.0, Point2::new(123.0, -45.0)); // scale 2.0
+        let cursor = Point2::new(650.0, 120.0); // off-center
+        let anchor = camera.screen_to_world(cursor);
+        camera.zoom_by_at(0.5, cursor);
+        let back = camera.world_to_screen(anchor);
+        assert!((back.x - cursor.x).abs() < 1e-3 && (back.y - cursor.y).abs() < 1e-3);
+    }
+
+    #[test]
+    fn zoom_at_viewport_center_matches_plain_zoom() {
+        let center = Point2::new(400.0, 300.0); // viewport_center for 800x600
+        let mut at = camera(0.0, Point2::new(70.0, 30.0));
+        let mut plain = at;
+        at.zoom_by_at(0.5, center);
+        plain.zoom_by(0.5);
+        // anchoring on the center leaves the translation where plain zoom does.
+        let probe = Point2::new(10.0, 10.0);
+        let a = at.world_to_screen(probe);
+        let p = plain.world_to_screen(probe);
+        assert!((a.x - p.x).abs() < 1e-3 && (a.y - p.y).abs() < 1e-3);
     }
 
     #[test]

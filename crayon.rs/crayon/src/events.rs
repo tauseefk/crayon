@@ -1,8 +1,13 @@
 use std::sync::Arc;
 
 use batteries::prelude::Dot2D;
+use cgmath::{Point2, Vector2};
 
-use crate::{editor_state::BrushProperties, renderer::render_context::RenderContext};
+use crate::{
+    document::{ArtboardId, LayerId},
+    editor_state::BrushProperties,
+    renderer::render_context::RenderContext,
+};
 
 /// Controller events are created to add an indirection so the events can be replayed.
 /// This is intended to build the undo/redo functionality in the future.
@@ -12,14 +17,29 @@ pub enum ControllerEvent {
         dot: Dot2D,
     },
     CameraMove {
-        position: cgmath::Point2<f32>,
+        /// Drag deltas are converted where the semantics live:
+        /// `world_delta = screen_delta / camera.scale` (§3.3).
+        world_delta: Vector2<f32>,
     },
     CameraZoom {
         delta: f32,
-        /// useful when zoom at off center position
-        _position: cgmath::Point2<f32>,
+        /// Zoom anchor in screen px: the world point under it stays fixed.
+        screen: Point2<f32>,
     },
-    ClearCanvas,
+    SelectArtboard(ArtboardId),
+    SelectLayer(ArtboardId, LayerId),
+    ClearSelection,
+    MoveLayer {
+        layer: LayerId,
+        world_delta: Vector2<f32>,
+    },
+    MoveArtboard {
+        artboard: ArtboardId,
+        world_delta: Vector2<f32>,
+    },
+    ClearLayer {
+        layer: LayerId,
+    },
     UpdateBrush(BrushProperties),
     StrokeStart,
     StrokeEnd,
@@ -36,12 +56,27 @@ pub enum CustomEvent {
         window: Arc<winit::window::Window>,
     },
     CameraMove {
-        position: cgmath::Point2<f32>,
+        world_delta: Vector2<f32>,
     },
     CameraZoom {
         delta: f32,
+        /// Zoom anchor in screen px: the world point under it stays fixed.
+        screen: Point2<f32>,
     },
-    ClearCanvas,
+    SelectArtboard(ArtboardId),
+    SelectLayer(ArtboardId, LayerId),
+    ClearSelection,
+    MoveLayer {
+        layer: LayerId,
+        world_delta: Vector2<f32>,
+    },
+    MoveArtboard {
+        artboard: ArtboardId,
+        world_delta: Vector2<f32>,
+    },
+    ClearLayer {
+        layer: LayerId,
+    },
     UpdateBrush(BrushProperties),
     StrokeStart,
     StrokeEnd,

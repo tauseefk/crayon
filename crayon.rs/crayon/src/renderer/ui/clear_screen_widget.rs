@@ -7,8 +7,11 @@ use crate::{
         theme::widgets::{GLOBAL_PADDING, IconButton},
     },
     resource::ResourceContext,
+    resources::document_state::DocumentState,
 };
 
+/// Clears the selected layer; disabled when no layer is selected (the global
+/// clear-canvas is retired, §3.3).
 pub struct ClearScreenWidget;
 
 impl ClearScreenWidget {
@@ -19,9 +22,12 @@ impl ClearScreenWidget {
 
 impl Drawable for ClearScreenWidget {
     fn draw(&self, ctx: &egui::Context, app: &App) {
-        let Some(event_sender) = app.read::<EventSender>() else {
+        let (Some(event_sender), Some(doc)) =
+            (app.read::<EventSender>(), app.read::<DocumentState>())
+        else {
             return;
         };
+        let selected_layer = doc.selection.selected_layer();
 
         let height = ctx.content_rect().height();
 
@@ -33,8 +39,14 @@ impl Drawable for ClearScreenWidget {
             .frame(egui::Frame::NONE)
             .show(ctx, |ui| {
                 let trash_icon = egui::include_image!("../../../assets/icons/trash.svg");
-                if ui.add(IconButton::new(trash_icon)).clicked() {
-                    event_sender.send(ControllerEvent::ClearCanvas);
+                let button = ui.add_enabled(
+                    selected_layer.is_some(),
+                    IconButton::new(trash_icon),
+                );
+                if button.clicked()
+                    && let Some((_, layer)) = selected_layer
+                {
+                    event_sender.send(ControllerEvent::ClearLayer { layer });
                 }
             });
     }
