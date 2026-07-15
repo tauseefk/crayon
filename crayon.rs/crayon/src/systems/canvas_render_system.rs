@@ -1,25 +1,29 @@
 use crate::{
     app::App,
-    constants::CLEAR_COLOR,
     renderer::{frame_context::FrameContext, render_context::RenderContext},
     resource::ResourceContext,
-    resources::canvas_state::CanvasContext,
+    resources::{document_state::DocumentState, scene_renderer::SceneRenderer},
+    state::State,
     system::System,
 };
 
-/// Renders the canvas to the surface using the camera pipeline.
+/// Composites the document — artboard backgrounds and layers as world-space
+/// quads — to the surface through the camera (multi-artboard.md §2.7).
 pub struct CanvasRenderSystem;
 
 impl System for CanvasRenderSystem {
     fn run(&self, app: &App) {
-        let (Some(mut render_ctx), Some(frame_ctx), Some(canvas)) = (
+        let (Some(mut render_ctx), Some(frame_ctx), Some(mut scene), Some(doc), Some(state)) = (
             app.write::<RenderContext>(),
             app.read::<FrameContext>(),
-            app.read::<CanvasContext>(),
+            app.write::<SceneRenderer>(),
+            app.read::<DocumentState>(),
+            app.read::<State>(),
         ) else {
             return;
         };
 
+        let render_ctx = &mut *render_ctx;
         let Some(view) = frame_ctx.surface_view.as_ref() else {
             return;
         };
@@ -27,36 +31,14 @@ impl System for CanvasRenderSystem {
             return;
         };
 
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Canvas Display Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(CLEAR_COLOR),
-                        store: wgpu::StoreOp::Store,
-                    },
-                    depth_slice: None,
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
-
-            let camera_bind_group = canvas.get_camera_bind_group();
-
-            render_pass.set_pipeline(&canvas.camera_pipeline);
-            render_pass.set_bind_group(0, &canvas.camera_vertex_bind_group, &[]);
-            render_pass.set_bind_group(1, camera_bind_group, &[]);
-            render_pass.set_bind_group(2, &canvas.stroke_layer_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, canvas.camera_vertex_buffer.slice(..));
-            render_pass.set_index_buffer(
-                canvas.camera_index_buffer.slice(..),
-                wgpu::IndexFormat::Uint16,
-            );
-
-            render_pass.draw_indexed(0..canvas.index_count, 0, 0..1);
-        }
+        scene.render(
+            &render_ctx.device,
+            &render_ctx.queue,
+            encoder,
+            view,
+            (render_ctx.config.width, render_ctx.config.height),
+            &doc.document,
+            &state.camera,
+        );
     }
 }

@@ -1,8 +1,8 @@
-use batteries::prelude::{Dot2D, screen_to_world_position, world_to_screen_position};
+use batteries::prelude::Dot2D;
 use cgmath::Point2;
 
 use crate::{
-    app::{App, WindowResource},
+    app::App,
     event_sender::EventSender,
     events::ControllerEvent,
     renderer::{
@@ -14,8 +14,6 @@ use crate::{
         },
     },
     resource::{Resource, ResourceContext},
-    state::State,
-    utils::transform_point::transform_point,
 };
 
 pub struct HelloResource {
@@ -54,12 +52,9 @@ impl HelloWidget {
 
 impl Drawable for HelloWidget {
     fn draw(&self, ctx: &egui::Context, app: &App) {
-        let (Some(mut hello_res), Some(event_sender), Some(window), Some(state)) = (
-            app.write::<HelloResource>(),
-            app.read::<EventSender>(),
-            app.read::<WindowResource>(),
-            app.read::<State>(),
-        ) else {
+        let (Some(mut hello_res), Some(event_sender)) =
+            (app.write::<HelloResource>(), app.read::<EventSender>())
+        else {
             return;
         };
 
@@ -87,13 +82,9 @@ impl Drawable for HelloWidget {
                     break;
                 };
 
-                let window_size = window.0.inner_size();
-                #[allow(clippy::cast_precision_loss)]
-                let window_size = (window_size.width as f32, window_size.height as f32);
-
-                let position = screen_to_world_position(point, window_size);
-                let position = transform_point(position, &state.camera);
-                let position = world_to_screen_position(position, window_size);
+                // HELLO_POINTS are screen px, matching pointer input; the
+                // paint stage (S3) maps them into the target layer.
+                let position = point;
 
                 event_sender.send(ControllerEvent::BrushPoint {
                     dot: Dot2D {
