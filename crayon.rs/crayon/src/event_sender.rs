@@ -30,6 +30,7 @@ impl From<ControllerEvent> for CustomEvent {
             ControllerEvent::ToggleLayerVisibility(layer) => {
                 CustomEvent::ToggleLayerVisibility(layer)
             }
+            ControllerEvent::OpenDocument => CustomEvent::OpenDocument,
             ControllerEvent::UpdateBrush(properties) => CustomEvent::UpdateBrush(properties),
             ControllerEvent::StrokeStart => CustomEvent::StrokeStart,
             ControllerEvent::StrokeEnd => CustomEvent::StrokeEnd,

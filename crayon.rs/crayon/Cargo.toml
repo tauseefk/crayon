@@ -29,6 +29,7 @@ env_logger = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
 pollster = { workspace = true }
+rfd = { workspace = true }
 winit = { workspace = true }
 wgpu = { workspace = true }
 rasengan = "0.2.3"

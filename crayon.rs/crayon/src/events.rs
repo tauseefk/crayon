@@ -43,6 +43,8 @@ pub enum ControllerEvent {
     AddLayer(ArtboardId),
     DeleteLayer(LayerId),
     ToggleLayerVisibility(LayerId),
+    /// Run the platform file dialog and load the picked document (§1.9).
+    OpenDocument,
     UpdateBrush(BrushProperties),
     StrokeStart,
     StrokeEnd,
@@ -89,6 +91,7 @@ pub enum CustomEvent {
     AddLayer(ArtboardId),
     DeleteLayer(LayerId),
     ToggleLayerVisibility(LayerId),
+    OpenDocument,
     UpdateBrush(BrushProperties),
     StrokeStart,
     StrokeEnd,

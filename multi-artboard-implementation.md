@@ -21,6 +21,7 @@ Check a box off only when that stage's independent test passes **and** its jj bo
 - [x] **S4** — `feat/selection-input` — selection stack + bubble dispatch + move
 - [x] **S5** — `feat/layer-panel-ui` — egui artboard/layer panel + CRUD
 - [x] **S6** — `feat/wasm-async-load` — wasm fetch path + full verification
+- [x] **S7** — `feat/open-document` — Open button + file dialogs (§1.9)
 
 **Use this list as you work.** At the start of a session, mirror the unchecked stages into your task tracker (the TodoWrite / task tool) and mark exactly one stage `in_progress` at a time. When a stage's test passes and its bookmark lands, tick its box **in this doc** (so the checked state survives across chats — the task tracker does not) and mark the task completed. Do not start the next stage until the current box is checked.
 
@@ -62,6 +63,7 @@ Check a box off only when that stage's independent test passes **and** its jj bo
 | S4    | `feat/selection-input`          | selection stack + bubble dispatch + move (§3)                          | Click-select, draw selected layer, cmd+drag move/pan      |
 | S5    | `feat/layer-panel-ui`           | egui artboard/layer panel + CRUD (§4)                                  | Full create/delete/visibility via panel                   |
 | S6    | `feat/wasm-async-load`          | wasm `DocumentLoaded` fetch path (§1.7, §1.8) + full verification (§7) | Web: thumbhash placeholder → real content                 |
+| S7    | `feat/open-document`            | Open button + rfd file dialogs (§1.9)                                  | Open a document at runtime on native and web              |
 
 ```mermaid
 flowchart LR
@@ -73,7 +75,8 @@ flowchart LR
     S3["S3 feat/<br/>layer-painting"] --> S4
     S4["S4 feat/<br/>selection-input"] --> S5
     S5["S5 feat/<br/>layer-panel-ui"] --> S6
-    S6["S6 feat/<br/>wasm-async-load"]
+    S6["S6 feat/<br/>wasm-async-load"] --> S7
+    S7["S7 feat/<br/>open-document"]
 ```
 
 ## jj workflow
@@ -328,6 +331,28 @@ Net effect on the plan: **S2–S4 become `cargo test`-automatable**; only final 
 - `cargo test`, `cargo clippy`, and both build targets green.
 
 **Done when:** web loads real documents with placeholder→content swap, and the §7 verification matrix passes on both targets.
+
+---
+
+# S7 — `feat/open-document`
+
+**Builds** (§1.9): an Open… button that loads a document at runtime on both targets.
+
+- New dependency `rfd` (workspace + crayon): sync `FileDialog` on native, `AsyncFileDialog` (HTML file input) on wasm.
+- `renderer/ui/menu_bar_widget.rs`: `egui::TopBottomPanel::top("menu")` with an "Open…" button → `ControllerEvent::OpenDocument`. Registered first in `ToolsSystem` (panels before floating windows).
+- `document/loader.rs`: `load_document_from_path(json_path, max_texture_dim)` (native — content dir = the JSON's parent; `load_document(name, ..)` becomes a wrapper over it) and `load_document_from_files(&[(name, bytes)], max_texture_dim)` (target-independent, natively unit-testable — exactly one `*.json` in the set, content matched by `Path::file_name`). **Opened** documents degrade per-layer: a missing/undecodable PNG warns and skips the pixels entry, so the layer renders as its thumbhash placeholder (§1.6); the **boot** path stays strict (fail → default document).
+- `app.rs`: `CustomEvent::OpenDocument` arm — native runs the sync dialog on the main thread and applies the result inline via `apply_loaded_document` (the extracted body of the `DocumentLoaded` arm); wasm spawns the async multi-select dialog and delivers via `CustomEvent::DocumentLoaded`. Cancelled dialog or load error → warn, keep the current document. No discard confirmation (no dirty tracking until save exists).
+
+**Depends on:** S6 (the `DocumentLoaded` swap).
+
+**Independent test:**
+
+- Unit: `load_document_from_files` — happy path (in-memory JSON + PNG), missing PNG → no pixels entry (not an error), zero/multiple JSONs → error. `load_document_from_path` on the real `assets/documents/default.json` matches `load_document("default", ..)`.
+- Native manual: Open → pick `two-boards.json` → document swaps (camera recenters, panel updates); cancel → nothing changes; JSON with a missing PNG → opens with the blurred placeholder layer.
+- Web manual: Open → multi-select `default.json` + `default.layer-2.png` → real content; JSON alone → thumbhash placeholder on the content layer. Also confirms the dialog appears at all — `AsyncFileDialog` needs transient user activation to click its hidden `<input type=file>`; if a browser blocks the button→proxy→`spawn_local` chain, move the dialog into the widget's click handler (§1.9).
+- `cargo test`, `cargo clippy`, and both build targets green.
+
+**Done when:** a document opens at runtime on both targets with the degradation behavior above.
 
 ---
 
