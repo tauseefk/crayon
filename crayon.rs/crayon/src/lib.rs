@@ -4,6 +4,7 @@ mod app;
 mod brush_controller;
 mod camera_controller;
 mod constants;
+mod document;
 mod editor_state;
 mod event_sender;
 mod events;
