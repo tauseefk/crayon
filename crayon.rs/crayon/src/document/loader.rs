@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
+#[cfg(not(target_arch = "wasm32"))]
+use anyhow::Context;
 use anyhow::bail;
 
 use crate::document::{Document, LayerId};
@@ -13,14 +15,12 @@ pub struct LoadedDocument {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn load_document(name: &str, max_texture_dim: u32) -> anyhow::Result<LoadedDocument> {
-    use anyhow::Context;
-
     let dir = asset_dir();
     let json_path = dir.join(format!("{name}.json"));
-    let json = std::fs::read_to_string(&json_path)?;
+    let json = std::fs::read_to_string(&json_path)
+        .with_context(|| format!("reading {}", json_path.display()))?;
     let mut document: Document =
         serde_json::from_str(&json).with_context(|| format!("parsing {}", json_path.display()))?;
-
     validate(&mut document, max_texture_dim)?;
 
     let mut layer_pixels = HashMap::new();
@@ -103,7 +103,7 @@ fn artboard_sized(img: &image::RgbaImage, (width, height): (u32, u32)) -> Vec<u8
 }
 
 /// Convert straight-alpha RGBA8 to premultiplied alpha in place.
-fn premultiply_alpha(rgba: &mut [u8]) {
+pub fn premultiply_alpha(rgba: &mut [u8]) {
     for px in rgba.chunks_exact_mut(4) {
         let alpha = u16::from(px[3]);
         for channel in &mut px[..3] {

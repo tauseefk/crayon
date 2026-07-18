@@ -15,6 +15,8 @@ mod resources;
 mod state;
 mod system;
 mod systems;
+#[cfg(test)]
+mod testing;
 mod texture;
 mod utils;
 
@@ -29,6 +31,7 @@ use crate::resource::ResourceContext;
 use crate::resources::brush_point_queue::BrushPointQueue;
 use crate::resources::brush_preview_state::BrushPreviewState;
 use crate::resources::frame_time::FrameTime;
+use crate::resources::launch_options::LaunchOptions;
 use crate::resources::stroke_state::StrokeState;
 use crate::system::{Schedule, SystemRegistry};
 use crate::systems::brush_preview_update_system::BrushPreviewUpdateSystem;
@@ -58,7 +61,8 @@ pub fn run() -> anyhow::Result<()> {
         .insert_resource(BrushPointQueue::new())
         .insert_resource(HelloResource::new())
         .insert_resource(BrushPreviewState::new())
-        .insert_resource(StrokeState::new());
+        .insert_resource(StrokeState::new())
+        .insert_resource(LaunchOptions::from_args());
 
     app.add_system(Schedule::PreUpdate, FrameAcquireSystem)
         .add_system(Schedule::Update, FrameTimeUpdateSystem)
