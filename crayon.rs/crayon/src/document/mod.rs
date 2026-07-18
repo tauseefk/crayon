@@ -28,7 +28,7 @@ pub struct Artboard {
     pub name: String,
     /// Top-left corner in world position
     pub position: [f32; 2],
-    /// Size in world coordinates clamped to device max texture dims on load.
+    /// Size in world-space clamped to device max texture dims on load.
     pub size: [f32; 2],
     /// Drawn in ascending order of index
     pub layers: Vec<Layer>,
@@ -147,6 +147,10 @@ impl Artboard {
             (self.size[0].round() as u32).max(1),
             (self.size[1].round() as u32).max(1),
         )
+    }
+
+    pub fn layer(&self, layer_id: LayerId) -> Option<&Layer> {
+        self.layers.iter().find(|layer| layer.id == layer_id)
     }
 }
 

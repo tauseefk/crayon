@@ -39,6 +39,13 @@ pub fn doc_two_artboards() -> Document {
     }
 }
 
+/// Premultiplied solid fill of `size`.
+pub fn solid_layer_pixels((width, height): (u32, u32), rgba: [u8; 4]) -> Vec<u8> {
+    let mut pixels = rgba.repeat(width as usize * height as usize);
+    crate::document::loader::premultiply_alpha(&mut pixels);
+    pixels
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

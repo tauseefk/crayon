@@ -19,7 +19,7 @@
         {
           "id": 3,
           "name": "Sketch",
-          "offset": [24.0, 10.0],
+          "offset": [0.0, 0.0],
           "visible": true,
           "content_path": null,
           "thumbhash": null

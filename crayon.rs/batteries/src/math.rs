@@ -18,6 +18,7 @@ pub const fn lerp_dot_2d(dot1: Dot2D, dot2: Dot2D, k: f32) -> Dot2D {
 }
 
 pub type Rect = ([f32; 2], [f32; 2]);
+#[derive(Debug, PartialEq)]
 pub struct AABB {
     pub min: Point2<f32>,
     pub max: Point2<f32>,
@@ -25,12 +26,19 @@ pub struct AABB {
 
 /// Get the center of a bounding box around a group of rects.
 pub fn rects_to_center(rects: &[Rect]) -> Point2<f32> {
-    let AABB { min, max } = AABB::new_from_rects(rects);
+    let AABB { min, max } = AABB::from_rects(rects);
     Point2::new(f32::midpoint(min.x, max.x), f32::midpoint(min.y, max.y))
 }
 
 impl AABB {
-    pub fn new_from_rects(rects: &[Rect]) -> AABB {
+    pub fn from_origin_and_size(origin: [f32; 2], size: [f32; 2]) -> Self {
+        Self {
+            min: Point2::new(origin[0], origin[1]),
+            max: Point2::new(origin[0] + size[0], origin[1] + size[1]),
+        }
+    }
+
+    pub fn from_rects(rects: &[Rect]) -> AABB {
         let mut min = Point2::new(f32::MAX, f32::MAX);
         let mut max = Point2::new(f32::MIN, f32::MIN);
         for (position, size) in rects {

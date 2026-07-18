@@ -1,57 +1,10 @@
-use std::mem;
-
-use cgmath::{EuclideanSpace, Point2};
+use batteries::prelude::AABB;
+use cgmath::{EuclideanSpace, Point2, Vector2};
 
 use crate::{
-    constants::{CAMERA_ZOOM_MAX, CAMERA_ZOOM_MIN, DEFAULT_CANVAS_ZOOM, WINDOW_SIZE},
+    constants::{CAMERA_ZOOM_MAX, CAMERA_ZOOM_MIN, DEFAULT_CANVAS_ZOOM},
     utils::clamp,
 };
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct DisplayVertex {
-    position: [f32; 3],
-    tex_coords: [f32; 2],
-}
-
-impl DisplayVertex {
-    const ATTRIBS: [wgpu::VertexAttribute; 2] =
-        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2];
-
-    pub fn desc() -> wgpu::VertexBufferLayout<'static> {
-        wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &Self::ATTRIBS,
-        }
-    }
-}
-
-/// y-axis is flipped
-/// wgpu world coordinates have y-axis pointing up
-/// but texture coordinates have y-axis point down
-pub const DISPLAY_VERTICES: &[DisplayVertex] = &[
-    // left bottom
-    DisplayVertex {
-        position: [-1.0, -1.0, 0.0],
-        tex_coords: [0.0, 1.0],
-    },
-    // right bottom
-    DisplayVertex {
-        position: [1.0, -1.0, 0.0],
-        tex_coords: [1.0, 1.0],
-    },
-    // right top
-    DisplayVertex {
-        position: [1.0, 1.0, 0.0],
-        tex_coords: [1.0, 0.0],
-    },
-    // left top
-    DisplayVertex {
-        position: [-1.0, 1.0, 0.0],
-        tex_coords: [0.0, 0.0],
-    },
-];
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -70,56 +23,28 @@ impl CameraUniform {
     }
 
     pub fn update_view_projection(&mut self, camera: &Camera2D) {
-        self.view_projection = camera.build_2d_transform_matrix().into();
+        self.view_projection = camera.world_to_clip_matrix().into();
     }
-}
-
-/// This encapsulates a transformation based on pointer events.
-/// Scale is relative, panning should follow the pointer.
-#[derive(Default)]
-pub struct CameraTransform {
-    pub scale_delta: Option<f32>,
-    pub translation: Option<cgmath::Point2<f32>>,
 }
 
 /// Pretend orthographic camera for rendering the entire canvas.
 /// Enables the zooming and panning.
 #[derive(Clone, Copy)]
 pub struct Camera2D {
-    /// remains the same in both axes
+    /// Remains the same in both axes.
     scale: f32,
+    /// Render target size.
     viewport: (f32, f32),
-    translation: cgmath::Point2<f32>,
+    /// World-space point at the viewport center.
+    translation: Point2<f32>,
 }
 
 impl Camera2D {
-    pub fn new() -> Self {
-        Self {
-            scale: DEFAULT_CANVAS_ZOOM,
-            viewport: (WINDOW_SIZE.0 as f32, WINDOW_SIZE.1 as f32),
-            translation: cgmath::Point2::origin(),
-        }
-    }
-
     pub fn with_viewport(width: f32, height: f32) -> Self {
         Self {
             scale: DEFAULT_CANVAS_ZOOM,
             viewport: (width, height),
-            translation: cgmath::Point2::origin(),
-        }
-    }
-
-    /// Updates the camera based on a transformation.
-    pub fn update(&mut self, transform: &CameraTransform) {
-        let CameraTransform {
-            scale_delta,
-            translation,
-        } = transform;
-        if let Some(scale_delta) = scale_delta {
-            self.scale = clamp::clamp_zoom(self.scale, *scale_delta);
-        }
-        if let Some(translation) = translation {
-            self.translation = *translation;
+            translation: Point2::origin(),
         }
     }
 
@@ -136,37 +61,28 @@ impl Camera2D {
         self.translation = world_position;
     }
 
+    pub fn zoom_by(&mut self, delta: f32) {
+        self.scale = clamp::clamp_zoom(self.scale, delta);
+    }
+
+    /// Pans by a drag delta (in screen coordinate space) so panning follows the cursor consistently at every zoom level.
+    pub fn pan_screen_delta(&mut self, delta: Vector2<f32>) {
+        self.translation -= delta / self.scale;
+    }
+
     /// Updates the aspect ratio, useful when rendering a non-square canvaas.
     pub fn update_viewport(&mut self, width: f32, height: f32) {
         self.adjust_scale_for_resize(width);
         self.viewport = (width, height);
     }
 
-    /// Builds the transformation matrix based on the scale and translation.
-    /// translate -> scale
-    pub fn build_2d_transform_matrix(&self) -> cgmath::Matrix4<f32> {
+    /// `clip.x =  2*scale/vw * (world.x - translation.x)`
+    /// y-flipped
+    /// `clip.y = -2*scale/vh * (world.y - translation.y)`.
+    pub fn world_to_clip_matrix(&self) -> cgmath::Matrix4<f32> {
         let scale_matrix = cgmath::Matrix4::from_nonuniform_scale(
-            self.scale,
-            self.scale * self.aspect_ratio(),
-            1.0,
-        );
-
-        let translation_matrix = cgmath::Matrix4::from_translation(cgmath::Vector3::new(
-            self.translation.x,
-            self.translation.y,
-            0.0,
-        ));
-
-        // order dependent
-        translation_matrix * scale_matrix
-    }
-
-    /// Builds the inverse transformation matrix based on the scale and translation.
-    /// scale -> translate
-    pub fn build_2d_inverse_transform_matrix(&self) -> cgmath::Matrix4<f32> {
-        let scale_matrix = cgmath::Matrix4::from_nonuniform_scale(
-            1.0 / self.scale,
-            1.0 / (self.scale * self.aspect_ratio()),
+            2.0 * self.scale / self.viewport.0,
+            -2.0 * self.scale / self.viewport.1,
             1.0,
         );
 
@@ -176,11 +92,129 @@ impl Camera2D {
             0.0,
         ));
 
-        // inverse order
+        // order dependent: translate into camera space, then scale to clip
         scale_matrix * translation_matrix
     }
 
-    fn aspect_ratio(&self) -> f32 {
-        self.viewport.0 / self.viewport.1
+    pub fn world_to_screen(&self, world_position: Point2<f32>) -> Point2<f32> {
+        self.viewport_center() + (world_position - self.translation) * self.scale
+    }
+
+    pub fn screen_to_world(&self, screen: Point2<f32>) -> Point2<f32> {
+        self.translation + (screen - self.viewport_center()) / self.scale
+    }
+
+    pub fn viewport_world_rect(&self) -> AABB {
+        let half_extent = Vector2::new(self.viewport.0, self.viewport.1) / (2.0 * self.scale);
+        AABB {
+            min: self.translation - half_extent,
+            max: self.translation + half_extent,
+        }
+    }
+
+    fn viewport_center(&self) -> Point2<f32> {
+        Point2::new(self.viewport.0 / 2.0, self.viewport.1 / 2.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cgmath::{Point3, Transform};
+
+    fn camera(scale_delta: f32, center: Point2<f32>) -> Camera2D {
+        let mut camera = Camera2D::with_viewport(800.0, 600.0);
+        camera.zoom_by(scale_delta);
+        camera.center_on(center);
+        camera
+    }
+
+    fn project(camera: &Camera2D, world: Point2<f32>) -> Point2<f32> {
+        let clip = camera
+            .world_to_clip_matrix()
+            .transform_point(Point3::new(world.x, world.y, 0.0));
+        Point2::new(clip.x, clip.y)
+    }
+
+    #[test]
+    fn viewport_center_maps_to_clip_origin() {
+        let camera = camera(0.0, Point2::new(100.0, 50.0));
+        let clip = project(&camera, Point2::new(100.0, 50.0));
+        assert!(clip.x.abs() < 1e-6 && clip.y.abs() < 1e-6);
+    }
+
+    #[test]
+    fn world_to_clip_flips_y_and_scales_per_axis() {
+        // scale 1: the visible world spans 800x600 around the center.
+        let camera = camera(0.0, Point2::new(0.0, 0.0));
+        let right_edge = project(&camera, Point2::new(400.0, 0.0));
+        assert!((right_edge.x - 1.0).abs() < 1e-6);
+        // +y in world (down) maps to -y in clip.
+        let bottom_edge = project(&camera, Point2::new(0.0, 300.0));
+        assert!((bottom_edge.y + 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn screen_world_round_trip() {
+        let camera = camera(1.0, Point2::new(123.0, -45.0)); // scale 2.0
+        let screen = Point2::new(700.0, 20.0);
+        let world = camera.screen_to_world(screen);
+        let back = camera.world_to_screen(world);
+        assert!((back.x - screen.x).abs() < 1e-3 && (back.y - screen.y).abs() < 1e-3);
+        // At scale 2, 300 screen px right of center is 150 world px.
+        assert!((world.x - (123.0 + 150.0)).abs() < 1e-3);
+    }
+
+    #[test]
+    fn pan_follows_cursor_one_to_one() {
+        let mut camera = camera(1.0, Point2::new(0.0, 0.0)); // scale 2.0
+        let anchor = camera.world_to_screen(Point2::new(10.0, 10.0));
+        camera.pan_screen_delta(Vector2::new(40.0, -20.0));
+        let moved = camera.world_to_screen(Point2::new(10.0, 10.0));
+        assert!((moved.x - (anchor.x + 40.0)).abs() < 1e-3);
+        assert!((moved.y - (anchor.y - 20.0)).abs() < 1e-3);
+    }
+
+    #[test]
+    fn visible_world_rect_matches_viewport_over_scale() {
+        let camera = camera(1.0, Point2::new(100.0, 100.0)); // scale 2.0
+        let rect = camera.viewport_world_rect();
+        assert!((rect.min.x - (100.0 - 200.0)).abs() < 1e-3);
+        assert!((rect.max.x - (100.0 + 200.0)).abs() < 1e-3);
+        assert!((rect.min.y - (100.0 - 150.0)).abs() < 1e-3);
+        assert!((rect.max.y - (100.0 + 150.0)).abs() < 1e-3);
+    }
+
+    #[test]
+    fn zoom_clamps_to_bounds() {
+        let mut camera = Camera2D::with_viewport(800.0, 600.0);
+        camera.zoom_by(100.0);
+        let max_rect = camera.viewport_world_rect();
+        camera.zoom_by(100.0);
+        assert_eq!(
+            camera.viewport_world_rect(),
+            max_rect,
+            "zoom clamped at max"
+        );
+        camera.zoom_by(-100.0);
+        let min_rect = camera.viewport_world_rect();
+        camera.zoom_by(-100.0);
+        assert_eq!(
+            camera.viewport_world_rect(),
+            min_rect,
+            "zoom clamped at min"
+        );
+    }
+
+    #[test]
+    fn rect_intersection() {
+        let a = AABB::from_origin_and_size([0.0, 0.0], [100.0, 100.0]);
+        let b = AABB::from_origin_and_size([50.0, 50.0], [100.0, 100.0]);
+        let c = AABB::from_origin_and_size([200.0, 0.0], [10.0, 10.0]);
+        assert!(a.intersects(&b));
+        assert!(!a.intersects(&c));
+        // Touching edges do not intersect (empty overlap).
+        let d = AABB::from_origin_and_size([100.0, 0.0], [10.0, 10.0]);
+        assert!(!a.intersects(&d));
     }
 }

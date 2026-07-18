@@ -1,4 +1,4 @@
-pub const DEFAULT_CANVAS_ZOOM: f32 = 0.72;
+pub const DEFAULT_CANVAS_ZOOM: f32 = 1.0;
 
 pub const CLEAR_COLOR: wgpu::Color = if cfg!(debug_assertions) {
     wgpu::Color {
@@ -16,6 +16,10 @@ pub const CLEAR_COLOR: wgpu::Color = if cfg!(debug_assertions) {
         a: 1.0,
     }
 };
+
+#[allow(dead_code)]
+pub const RED: [u8; 4] = [255, 0, 0, 255];
+pub const WHITE: [u8; 4] = [255, 255, 255, 255];
 
 pub const TOOLS_BG_COLOR: egui::Color32 = egui::Color32::from_rgb(216, 225, 255);
 

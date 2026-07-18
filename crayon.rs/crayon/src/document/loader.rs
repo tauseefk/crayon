@@ -301,7 +301,7 @@ mod tests {
                         Layer {
                             id: LayerId(3),
                             name: "Sketch".to_string(),
-                            offset: [24.0, 10.0],
+                            offset: [0.0, 0.0],
                             visible: true,
                             content_path: None,
                             thumbhash: None,

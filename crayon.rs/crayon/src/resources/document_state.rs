@@ -16,7 +16,7 @@ impl DocumentState {
 }
 
 pub enum GpuOp {
-    ClearLayer { layer: LayerId },
+    ClearLayer { layer_id: LayerId },
 }
 
 impl Resource for DocumentState {}

@@ -1,12 +1,15 @@
 use batteries::prelude::Dot2D;
 
-use crate::{renderer::camera::Camera2D, resource::Resource};
+use crate::{
+    renderer::camera::Camera2D, resource::Resource, resources::stroke_state::StrokeTarget,
+};
 
 const BRUSH_POINT_QUEUE_SIZE: usize = 500;
 #[derive(Clone, Copy)]
 pub struct BrushPointData {
     pub dot: Dot2D,
     pub camera: Camera2D,
+    pub target: Option<StrokeTarget>,
 }
 
 pub struct BrushPointQueue {
@@ -20,8 +23,8 @@ impl BrushPointQueue {
         }
     }
 
-    pub fn write(&mut self, dot: Dot2D, camera: Camera2D) {
-        self.points.write(BrushPointData { dot, camera });
+    pub fn write(&mut self, brush_point_data: BrushPointData) {
+        self.points.write(brush_point_data);
     }
 
     pub fn read(&mut self) -> Option<BrushPointData> {
