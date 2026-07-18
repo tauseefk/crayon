@@ -17,6 +17,7 @@ base64 = { workspace = true }
 batteries = { version = "0.1.0", path = "../batteries" }
 bytemuck = { workspace = true }
 cgmath = { workspace = true }
+clap = { version = "4.6.2", features = ["derive"] }
 egui = "0.33.2"
 egui_extras = { version = "0.33.2", features = ["svg"] }
 egui-wgpu = { version = "0.33.2", features = ["winit"] }
