@@ -5,35 +5,23 @@
     {
       "id": 1,
       "name": "Artboard 1",
-      "position": [
-        0.0,
-        0.0
-      ],
-      "size": [
-        800.0,
-        600.0
-      ],
+      "position": [0.0, 0.0],
+      "size": [800.0, 600.0],
       "layers": [
         {
           "id": 2,
           "name": "Background",
-          "offset": [
-            0.0,
-            0.0
-          ],
+          "offset": [0.0, 0.0],
           "visible": true,
-          "content": "default.layer-2.png",
+          "content_path": "default.layer-2.png",
           "thumbhash": "XcqCDIQkGPOZaHI/NXAqA6eSgItnF7eJCA=="
         },
         {
           "id": 3,
           "name": "Sketch",
-          "offset": [
-            24.0,
-            10.0
-          ],
+          "offset": [24.0, 10.0],
           "visible": true,
-          "content": null,
+          "content_path": null,
           "thumbhash": null
         }
       ]
@@ -41,14 +29,8 @@
     {
       "id": 4,
       "name": "Artboard 2",
-      "position": [
-        880.0,
-        120.0
-      ],
-      "size": [
-        400.0,
-        400.0
-      ],
+      "position": [880.0, 120.0],
+      "size": [400.0, 400.0],
       "layers": []
     }
   ]

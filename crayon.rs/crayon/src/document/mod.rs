@@ -58,14 +58,21 @@ impl Default for Document {
         };
 
         let artboard_id = doc.alloc_artboard_id();
-        let _layer_id = doc.alloc_layer_id();
+        let layer_id = doc.alloc_layer_id();
 
         doc.artboards.push(Artboard {
             id: artboard_id,
             name: "Artboard 1".to_string(),
             position: [0.0, 0.0],
             size: [800.0, 600.0],
-            layers: vec![],
+            layers: vec![Layer {
+                id: layer_id,
+                name: "Layer 1".to_string(),
+                offset: [0.0, 0.0],
+                visible: true,
+                content_path: None,
+                thumbhash: None,
+            }],
         });
         doc
     }
