@@ -1,4 +1,5 @@
 pub mod loader;
+pub mod thumbhash;
 
 use serde::{Deserialize, Serialize};
 
@@ -57,7 +58,7 @@ impl Default for Document {
         };
 
         let artboard_id = doc.alloc_artboard_id();
-        let layer_id = doc.alloc_layer_id();
+        let _layer_id = doc.alloc_layer_id();
 
         doc.artboards.push(Artboard {
             id: artboard_id,
