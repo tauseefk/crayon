@@ -1,6 +1,8 @@
 pub mod loader;
 pub mod thumbhash;
 
+use batteries::prelude::{Rect, rects_to_center};
+use cgmath::Point2;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -119,6 +121,16 @@ impl Document {
             .rev()
             .find(|artboard| artboard.contains(world_position))
             .map(|artboard| artboard.id)
+    }
+
+    pub fn get_center(&self) -> Point2<f32> {
+        let rects: Vec<Rect> = self
+            .artboards
+            .iter()
+            .map(|artboard| (artboard.position, artboard.size))
+            .collect();
+
+        rects_to_center(&rects)
     }
 }
 

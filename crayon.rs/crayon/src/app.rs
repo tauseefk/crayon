@@ -12,6 +12,7 @@ use winit::{
 
 use crate::{
     constants::WINDOW_SIZE,
+    document::loader::LoadedDocument,
     event_sender::EventSender,
     events::CustomEvent,
     renderer::{
@@ -21,7 +22,8 @@ use crate::{
     resource::{Res, ResMut, Resource, ResourceContext},
     resources::{
         brush_point_queue::BrushPointQueue, brush_preview_state::BrushPreviewState,
-        canvas_state::CanvasContext, input_system::InputSystem, stroke_state::StrokeState,
+        canvas_state::CanvasContext, document_state::DocumentState, input_system::InputSystem,
+        stroke_state::StrokeState,
     },
     state::State,
     system::{Schedule, System, SystemRegistry},
@@ -85,6 +87,29 @@ impl App {
         for system in &self.post_update_systems {
             system.run(self);
         }
+    }
+
+    fn insert_document_resources(
+        &mut self,
+        render_context: &RenderContext,
+        loaded: LoadedDocument,
+        window_size: (u32, u32),
+    ) {
+        let mut scene_renderer = SceneRenderer::new(
+            &render_context.device,
+            &render_context.queue,
+            render_context.config.format,
+        );
+
+        scene_renderer.hydrate(&render_context.device, &render_context.queue, &loaded);
+
+        let mut app_state = State::new(window_size.0, window_size.1);
+        app_state.camera.center_on(loaded.document.get_center());
+
+        self.insert_resource(scene_renderer)
+            .insert_resource(DocumentState::new(loaded.document))
+            .insert_resource(app_state)
+            .insert_resource(FrameContext::new());
     }
 }
 

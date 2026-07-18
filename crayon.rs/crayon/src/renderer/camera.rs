@@ -1,6 +1,6 @@
 use std::mem;
 
-use cgmath::EuclideanSpace;
+use cgmath::{EuclideanSpace, Point2};
 
 use crate::{
     constants::{CAMERA_ZOOM_MAX, CAMERA_ZOOM_MIN, DEFAULT_CANVAS_ZOOM, WINDOW_SIZE},
@@ -130,6 +130,10 @@ impl Camera2D {
             self.scale =
                 (self.scale * (old_width / new_width)).clamp(CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX);
         }
+    }
+
+    pub fn center_on(&mut self, world_position: Point2<f32>) {
+        self.translation = world_position;
     }
 
     /// Updates the aspect ratio, useful when rendering a non-square canvaas.
