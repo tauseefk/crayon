@@ -1,12 +1,12 @@
-use batteries::prelude::{Dot2D, screen_to_world_position, world_to_screen_position};
+use batteries::prelude::Dot2D;
 use cgmath::Point2;
 
 use crate::{
-    app::{App, WindowResource},
+    app::App,
     event_sender::EventSender,
     events::ControllerEvent,
     renderer::{
-        brush::{POINTER_SIZE, POINTER_TO_BRUSH_SIZE_MULTIPLE},
+        brush::DEFAULT_BRUSH_SIZE,
         ui::{
             drawable::Drawable,
             hello_points::HELLO_POINTS,
@@ -14,8 +14,6 @@ use crate::{
         },
     },
     resource::{Resource, ResourceContext},
-    state::State,
-    utils::transform_point::transform_point,
 };
 
 pub struct HelloResource {
@@ -54,12 +52,9 @@ impl HelloWidget {
 
 impl Drawable for HelloWidget {
     fn draw(&self, ctx: &egui::Context, app: &App) {
-        let (Some(mut hello_res), Some(event_sender), Some(window), Some(state)) = (
-            app.write::<HelloResource>(),
-            app.read::<EventSender>(),
-            app.read::<WindowResource>(),
-            app.read::<State>(),
-        ) else {
+        let (Some(mut hello_res), Some(event_sender)) =
+            (app.write::<HelloResource>(), app.read::<EventSender>())
+        else {
             return;
         };
 
@@ -87,18 +82,11 @@ impl Drawable for HelloWidget {
                     break;
                 };
 
-                let window_size = window.0.inner_size();
-                #[allow(clippy::cast_precision_loss)]
-                let window_size = (window_size.width as f32, window_size.height as f32);
-
-                let position = screen_to_world_position(point, window_size);
-                let position = transform_point(position, &state.camera);
-                let position = world_to_screen_position(position, window_size);
-
                 event_sender.send(ControllerEvent::BrushPoint {
                     dot: Dot2D {
-                        position,
-                        radius: POINTER_SIZE * POINTER_TO_BRUSH_SIZE_MULTIPLE,
+                        // points are in screen-space
+                        position: point,
+                        radius: DEFAULT_BRUSH_SIZE,
                     },
                 });
                 emitted = true;

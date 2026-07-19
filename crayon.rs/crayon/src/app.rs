@@ -1,4 +1,3 @@
-use batteries::prelude::{Dot2D, screen_to_ndc, screen_to_world_position};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 use winit::{
@@ -12,20 +11,23 @@ use winit::{
 
 use crate::{
     constants::WINDOW_SIZE,
+    document::{Document, loader::LoadedDocument},
     event_sender::EventSender,
     events::CustomEvent,
     renderer::{
-        camera::CameraTransform, egui_context::EguiContext, frame_context::FrameContext,
-        render_context::RenderContext,
+        egui_context::EguiContext, frame_context::FrameContext, render_context::RenderContext,
     },
     resource::{Res, ResMut, Resource, ResourceContext},
     resources::{
-        brush_point_queue::BrushPointQueue, brush_preview_state::BrushPreviewState,
-        canvas_state::CanvasContext, input_system::InputSystem, stroke_state::StrokeState,
+        brush_point_queue::{BrushPointData, BrushPointQueue},
+        brush_preview_state::BrushPreviewState,
+        document_state::{DocumentState, GpuOp},
+        input_system::InputSystem,
+        scene_renderer::SceneRenderer,
+        stroke_state::StrokeState,
     },
     state::State,
     system::{Schedule, System, SystemRegistry},
-    utils::clamp,
 };
 
 use std::{
@@ -85,6 +87,29 @@ impl App {
         for system in &self.post_update_systems {
             system.run(self);
         }
+    }
+
+    fn insert_document_resources(
+        &mut self,
+        render_context: &RenderContext,
+        loaded: LoadedDocument,
+        window_size: (u32, u32),
+    ) {
+        let mut scene_renderer = SceneRenderer::new(
+            &render_context.device,
+            &render_context.queue,
+            render_context.config.format,
+        );
+
+        scene_renderer.hydrate(&render_context.device, &render_context.queue, &loaded);
+
+        let mut app_state = State::new(window_size.0, window_size.1);
+        app_state.camera.center_on(loaded.document.get_center());
+
+        self.insert_resource(scene_renderer)
+            .insert_resource(DocumentState::new(loaded.document))
+            .insert_resource(app_state)
+            .insert_resource(FrameContext::new());
     }
 }
 
@@ -169,19 +194,42 @@ impl ApplicationHandler<CustomEvent> for App {
 
             #[cfg(not(target_arch = "wasm32"))]
             {
+                use crate::{
+                    document::loader::load_document, resources::launch_options::LaunchOptions,
+                };
+
                 let window_size = window.inner_size();
                 let render_context = pollster::block_on(RenderContext::new(window.clone()))
                     .expect("Unable to create canvas!!!");
-                let canvas_state =
-                    CanvasContext::new(&render_context, (window_size.width, window_size.height));
-                let egui_context = EguiContext::new(window, &render_context);
-                let app_state = State::new(window_size.width, window_size.height);
 
+                let document_name = self
+                    .read::<LaunchOptions>()
+                    .map_or_else(|| "default".to_string(), |options| options.document.clone());
+                let max_texture_dim = render_context.device.limits().max_texture_dimension_2d;
+                let loaded =
+                    load_document(&document_name, max_texture_dim).unwrap_or_else(|error| {
+                        use crate::document::Document;
+
+                        log::warn!(
+                            "failed to load document '{document_name}': {error:#}; \
+                        falling back to the default document"
+                        );
+
+                        LoadedDocument {
+                            document: Document::default_document(),
+                            layer_pixels: HashMap::new(),
+                        }
+                    });
+
+                let egui_context = EguiContext::new(window, &render_context);
+
+                self.insert_document_resources(
+                    &render_context,
+                    loaded,
+                    (window_size.width, window_size.height),
+                );
                 self.insert_resource(render_context)
-                    .insert_resource(canvas_state)
-                    .insert_resource(egui_context)
-                    .insert_resource(app_state)
-                    .insert_resource(FrameContext::new());
+                    .insert_resource(egui_context);
 
                 self.run_update_systems();
             }
@@ -195,96 +243,71 @@ impl ApplicationHandler<CustomEvent> for App {
     ///
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: CustomEvent) {
         match event {
+            // FIXME: Cmd+R clears every layer
             CustomEvent::ClearCanvas => {
-                if let (Some(canvas_ctx), Some(render_ctx)) = (
-                    &mut self.write::<CanvasContext>(),
-                    self.read::<RenderContext>(),
-                ) {
-                    canvas_ctx.clear_render_texture(&render_ctx);
+                if let Some(mut doc) = self.write::<DocumentState>() {
+                    let ops: Vec<GpuOp> = doc
+                        .document
+                        .artboards
+                        .iter()
+                        .flat_map(|artboard| artboard.layers.iter())
+                        .map(|layer| GpuOp::ClearLayer { layer_id: layer.id })
+                        .collect();
+                    doc.gpu_dirty.extend(ops);
                 }
             }
             // TODO: cleanup the transformation code
             CustomEvent::CameraMove { position } => {
-                if let (Some(window_res), Some(canvas_ctx), Some(render_ctx), Some(mut state)) = (
-                    self.read::<WindowResource>(),
-                    &mut self.write::<CanvasContext>(),
-                    self.read::<RenderContext>(),
-                    self.write::<State>(),
-                ) {
-                    let window_size = window_res.0.inner_size();
-                    let world_translation = screen_to_world_position(
-                        position,
-                        #[allow(clippy::cast_precision_loss)]
-                        (window_size.width as f32, window_size.height as f32),
-                    );
-                    let transform = CameraTransform {
-                        translation: Some(clamp::clamp_point(world_translation)),
-                        ..Default::default()
-                    };
-                    state.camera.update(&transform);
-                    canvas_ctx.update_camera_buffer(&render_ctx, &state.camera);
+                if let Some(mut state) = self.write::<State>() {
+                    let delta = position - state.pan_offset;
+                    state.pan_offset = position;
+                    state.camera.pan_screen_delta(delta);
                 }
             }
-            // TODO: cleanup the transformation code
             CustomEvent::CameraZoom { delta } => {
-                if let (
-                    Some(canvas_ctx),
-                    Some(render_ctx),
-                    Some(mut state),
-                    Some(mut preview_state),
-                ) = (
-                    &mut self.write::<CanvasContext>(),
-                    self.read::<RenderContext>(),
-                    self.write::<State>(),
-                    self.write::<BrushPreviewState>(),
-                ) {
-                    let transform = CameraTransform {
-                        scale_delta: Some(delta),
-                        ..Default::default()
-                    };
-                    state.camera.update(&transform);
-                    canvas_ctx.update_camera_buffer(&render_ctx, &state.camera);
+                if let (Some(mut state), Some(mut preview_state)) =
+                    (self.write::<State>(), self.write::<BrushPreviewState>())
+                {
+                    state.camera.zoom_by(delta);
                     // Update brush preview scale to match viewport zoom
                     preview_state.update_scale(delta);
                 }
             }
-            // TODO: cleanup the transformation code
             CustomEvent::BrushPoint { dot } => {
-                if let (Some(window), Some(state), Some(mut queue)) = (
-                    self.read::<WindowResource>(),
+                if let (Some(state), Some(stroke_state), Some(mut queue)) = (
                     self.read::<State>(),
+                    self.read::<StrokeState>(),
                     self.write::<BrushPointQueue>(),
                 ) {
-                    let window_size = window.0.inner_size();
-
-                    let position = screen_to_ndc(
-                        dot.position,
-                        #[allow(clippy::cast_precision_loss)]
-                        (window_size.width as f32, window_size.height as f32),
-                    );
-
-                    queue.write(
-                        Dot2D {
-                            position,
-                            radius: dot.radius,
-                        },
-                        state.camera,
-                    );
+                    // Raw screen coordinates and camera state at enqueue time are enough for coordinate transformation later.
+                    queue.write(BrushPointData {
+                        dot,
+                        camera: state.camera,
+                        target: stroke_state.target,
+                    });
                 }
             }
             CustomEvent::UpdateBrush(properties) => {
-                if let (Some(mut state), Some(mut canvas_ctx), Some(render_ctx)) = (
-                    self.write::<State>(),
-                    self.write::<CanvasContext>(),
+                if let (Some(render_ctx), Some(mut state), Some(mut scene)) = (
                     self.read::<RenderContext>(),
+                    self.write::<State>(),
+                    self.write::<SceneRenderer>(),
                 ) {
                     state.editor.update_brush(properties);
-                    canvas_ctx.update_brush(&render_ctx, properties.color.to_rgba_array());
+                    scene.update_brush(&render_ctx.queue, properties.color.to_rgba_array());
                 }
             }
             CustomEvent::StrokeStart => {
-                if let Some(mut stroke_state) = self.write::<StrokeState>() {
-                    stroke_state.start();
+                if let (Some(doc), Some(mut stroke_state)) =
+                    (self.read::<DocumentState>(), self.write::<StrokeState>())
+                {
+                    // TODO: replace hardcoded top layer with selected layer
+                    let target = doc.document.artboards.first().and_then(|artboard| {
+                        artboard.layers.last().map(|layer| (artboard.id, layer.id))
+                    });
+                    if let Some(target) = target {
+                        stroke_state.start(target);
+                    }
                 }
             }
             CustomEvent::StrokeEnd => {
@@ -298,16 +321,21 @@ impl ApplicationHandler<CustomEvent> for App {
                 window,
             } => {
                 let window_size = window.inner_size();
-                let canvas_ctx =
-                    CanvasContext::new(&render_context, (window_size.width, window_size.height));
                 let egui_ctx = EguiContext::new(window.clone(), &render_context);
-                let app_state = State::new(window_size.width, window_size.height);
 
+                // TODO: implement actual document loading
+                let loaded = LoadedDocument {
+                    document: Document::default_document(),
+                    layer_pixels: HashMap::new(),
+                };
+
+                self.insert_document_resources(
+                    &render_context,
+                    loaded,
+                    (window_size.width, window_size.height),
+                );
                 self.insert_resource(*render_context)
-                    .insert_resource(canvas_ctx)
                     .insert_resource(egui_ctx)
-                    .insert_resource(app_state)
-                    .insert_resource(FrameContext::new())
                     .insert_resource(WindowResource(window));
 
                 self.run_update_systems();
@@ -358,16 +386,13 @@ impl ApplicationHandler<CustomEvent> for App {
                 }
 
                 // Subsequent resize handling
-                if let (Some(mut render_ctx), Some(mut canvas_ctx), Some(mut state)) = (
-                    self.write::<RenderContext>(),
-                    self.write::<CanvasContext>(),
-                    self.write::<State>(),
-                ) {
+                // World positions are resize-invariant, only the viewport and surface change.
+                if let (Some(mut render_ctx), Some(mut state)) =
+                    (self.write::<RenderContext>(), self.write::<State>())
+                {
                     state
                         .camera
                         .update_viewport(new_size.width as f32, new_size.height as f32);
-                    // camera buffer needs to be updated after updating the camera
-                    canvas_ctx.update_camera_buffer(&render_ctx, &state.camera);
                     render_ctx.reconfigure(new_size);
                 }
             }

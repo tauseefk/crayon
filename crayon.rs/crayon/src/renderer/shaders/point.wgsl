@@ -1,23 +1,24 @@
 // Accumulate pass
 // 
-// Stamps brush dabs into the stroke layer as instanced quads.
-// One instance per queued dab; the whole frame's dabs are drawn in a single pass.
+// Stamps brush points into the stroke layer as instanced quads.
+// One instance per queued point; the whole frame's points are drawn in a single pass.
 //
 // Alpha Pre-multiply
 // 
 // Output is premultiplied alpha (rgb * a, a). The stroke layer accumulates many
-// overlapping dabs in this pass and is later composited over the canvas, so the
+// overlapping points in this pass and is later composited over the canvas, so the
 // color must be premultiplied here for both the accumulate blend and that later
 // composite to be correct. Storing straight alpha would blend the alpha channel
-// incorrectly and leave color fringes at dab edges.
+// incorrectly and leave color fringes at point edges.
 
-struct DabUniform {
+struct PointUniform {
     color: vec4<f32>,
+    // active layer size
+    layer_size: vec2<f32>
 };
 
-@group(0) @binding(0) var<uniform> dab: DabUniform;
+@group(0) @binding(0) var<uniform> point: PointUniform;
 
-// Per-instance data: xy = dab center in canvas NDC, z = radius in NDC.
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) local: vec2<f32>,
@@ -41,10 +42,13 @@ fn vs_main(
 
     let corner = corners[vertex_index];
     let center = instance.xy;
-    let radius = instance.z;
+    let radius_px = instance.z;
+
+    // per-axis clip conversion keeps points round on non-square layers.
+    let clip_offset = corner * radius_px * vec2<f32>(2.0 / point.layer_size.x, 2.0 / point.layer_size.y);
 
     var out: VertexOutput;
-    out.clip_position = vec4<f32>(center + corner * radius, 0.0, 1.0);
+    out.clip_position = vec4<f32>(center + clip_offset, 0.0, 1.0);
     out.local = corner;
 
     return out;
@@ -54,7 +58,7 @@ fn vs_main(
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let distance = length(in.local);
     let strength = 1.0 - smoothstep(SHARPNESS, 1.0, distance);
-    let coverage = strength * dab.color.a;
+    let coverage = strength * point.color.a;
 
-    return vec4<f32>(dab.color.rgb * coverage, coverage);
+    return vec4<f32>(point.color.rgb * coverage, coverage);
 }

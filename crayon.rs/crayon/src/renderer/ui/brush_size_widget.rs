@@ -6,10 +6,7 @@ use crate::{
     editor_state::BrushProperties,
     event_sender::EventSender,
     events::ControllerEvent,
-    renderer::{
-        brush::POINTER_TO_BRUSH_SIZE_MULTIPLE,
-        ui::{drawable::Drawable, theme::widgets::StyledSlider},
-    },
+    renderer::ui::{drawable::Drawable, theme::widgets::StyledSlider},
     resource::ResourceContext,
     resources::brush_preview_state::BrushPreviewState,
     state::State,
@@ -18,8 +15,6 @@ use crate::{
 const BRUSH_STEP_SIZE: f64 = 0.5;
 const MIN_BRUSH_SIZE: f32 = 5.0;
 const MAX_BRUSH_SIZE: f32 = 50.0;
-// y-flipped
-const SCREEN_CENTER: Point2<f32> = Point2 { x: 1., y: -1. };
 
 pub struct BrushSizeWidget;
 
@@ -56,15 +51,19 @@ impl Drawable for BrushSizeWidget {
 
                 if response.dragged() || response.has_focus() || response.changed() {
                     // update brush preview state on user interaction
+                    let center = ctx.content_rect().center() * ctx.pixels_per_point();
                     if let Some(mut preview_state) = app.write::<BrushPreviewState>() {
-                        preview_state.show_at_position(SCREEN_CENTER);
+                        preview_state.show_at_position(Point2 {
+                            x: center.x,
+                            y: center.y,
+                        });
                     }
                 }
 
                 if response.changed() {
                     event_sender.send(ControllerEvent::UpdateBrush(BrushProperties {
                         pointer_size,
-                        size: pointer_size * POINTER_TO_BRUSH_SIZE_MULTIPLE,
+                        size: pointer_size,
                         ..state.editor.brush_properties
                     }));
                 }

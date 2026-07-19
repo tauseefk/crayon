@@ -1,6 +1,8 @@
 pub mod loader;
 pub mod thumbhash;
 
+use batteries::prelude::{Rect, rects_to_center};
+use cgmath::Point2;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -26,7 +28,7 @@ pub struct Artboard {
     pub name: String,
     /// Top-left corner in world position
     pub position: [f32; 2],
-    /// Size in world coordinates clamped to device max texture dims on load.
+    /// Size in world-space clamped to device max texture dims on load.
     pub size: [f32; 2],
     /// Drawn in ascending order of index
     pub layers: Vec<Layer>,
@@ -120,6 +122,16 @@ impl Document {
             .find(|artboard| artboard.contains(world_position))
             .map(|artboard| artboard.id)
     }
+
+    pub fn get_center(&self) -> Point2<f32> {
+        let rects: Vec<Rect> = self
+            .artboards
+            .iter()
+            .map(|artboard| (artboard.position, artboard.size))
+            .collect();
+
+        rects_to_center(&rects)
+    }
 }
 
 impl Artboard {
@@ -135,6 +147,10 @@ impl Artboard {
             (self.size[0].round() as u32).max(1),
             (self.size[1].round() as u32).max(1),
         )
+    }
+
+    pub fn layer(&self, layer_id: LayerId) -> Option<&Layer> {
+        self.layers.iter().find(|layer| layer.id == layer_id)
     }
 }
 
