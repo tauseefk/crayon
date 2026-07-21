@@ -9,6 +9,7 @@ mod document;
 mod editor_state;
 mod event_sender;
 mod events;
+mod input;
 mod renderer;
 mod resource;
 mod resources;
