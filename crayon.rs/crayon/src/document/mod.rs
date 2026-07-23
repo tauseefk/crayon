@@ -99,6 +99,12 @@ impl Document {
         self.artboards.iter_mut().find(|artboard| artboard.id == id)
     }
 
+    pub fn find_layer_mut(&mut self, id: LayerId) -> Option<&mut Layer> {
+        self.artboards
+            .iter_mut()
+            .find_map(|artboard| artboard.layers.iter_mut().find(|layer| layer.id == id))
+    }
+
     pub fn find_layer(&self, id: LayerId) -> Option<(ArtboardId, &Layer)> {
         self.artboards.iter().find_map(|artboard| {
             artboard
