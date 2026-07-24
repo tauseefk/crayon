@@ -61,8 +61,17 @@ impl Camera2D {
         self.translation = world_position;
     }
 
+    /// Center-anchored zoom. Production zoom goes through `zoom_by_at`; this
+    /// remains for tests that assert scale/clamp behavior directly.
+    #[cfg(test)]
     pub fn zoom_by(&mut self, delta: f32) {
         self.scale = clamp::clamp_zoom(self.scale, delta);
+    }
+
+    pub fn zoom_by_at(&mut self, delta: f32, screen: Point2<f32>) {
+        let anchor_world = self.screen_to_world(screen);
+        self.scale = clamp::clamp_zoom(self.scale, delta);
+        self.translation = anchor_world + (self.viewport_center() - screen) / self.scale;
     }
 
     /// Pans by a drag delta (in screen coordinate space) so panning follows the cursor consistently at every zoom level.
@@ -102,6 +111,11 @@ impl Camera2D {
 
     pub fn screen_to_world(&self, screen: Point2<f32>) -> Point2<f32> {
         self.translation + (screen - self.viewport_center()) / self.scale
+    }
+
+    // translation and viewport center cancel out
+    pub fn screen_delta_to_world(&self, delta: Vector2<f32>) -> Vector2<f32> {
+        delta / self.scale
     }
 
     pub fn viewport_world_rect(&self) -> AABB {
@@ -183,6 +197,30 @@ mod tests {
         assert!((rect.max.x - (100.0 + 200.0)).abs() < 1e-3);
         assert!((rect.min.y - (100.0 - 150.0)).abs() < 1e-3);
         assert!((rect.max.y - (100.0 + 150.0)).abs() < 1e-3);
+    }
+
+    #[test]
+    fn zoom_at_cursor_keeps_anchor_stationary() {
+        let mut camera = camera(1.0, Point2::new(123.0, -45.0)); // scale 2.0
+        let cursor = Point2::new(650.0, 120.0); // off-center
+        let anchor = camera.screen_to_world(cursor);
+        camera.zoom_by_at(0.5, cursor);
+        let back = camera.world_to_screen(anchor);
+        assert!((back.x - cursor.x).abs() < 1e-3 && (back.y - cursor.y).abs() < 1e-3);
+    }
+
+    #[test]
+    fn zoom_at_viewport_center_matches_plain_zoom() {
+        let center = Point2::new(400.0, 300.0); // viewport_center for 800x600
+        let mut at = camera(0.0, Point2::new(70.0, 30.0));
+        let mut plain = at;
+        at.zoom_by_at(0.5, center);
+        plain.zoom_by(0.5);
+        // anchoring on the center leaves the translation where plain zoom does.
+        let probe = Point2::new(10.0, 10.0);
+        let a = at.world_to_screen(probe);
+        let p = plain.world_to_screen(probe);
+        assert!((a.x - p.x).abs() < 1e-3 && (a.y - p.y).abs() < 1e-3);
     }
 
     #[test]

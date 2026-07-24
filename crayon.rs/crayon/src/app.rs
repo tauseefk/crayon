@@ -264,11 +264,11 @@ impl ApplicationHandler<CustomEvent> for App {
                     state.camera.pan_screen_delta(delta);
                 }
             }
-            CustomEvent::CameraZoom { delta } => {
+            CustomEvent::CameraZoom { delta, screen } => {
                 if let (Some(mut state), Some(mut preview_state)) =
                     (self.write::<State>(), self.write::<BrushPreviewState>())
                 {
-                    state.camera.zoom_by(delta);
+                    state.camera.zoom_by_at(delta, screen);
                     // Update brush preview scale to match viewport zoom
                     preview_state.update_scale(delta);
                 }

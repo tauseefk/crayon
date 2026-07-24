@@ -115,6 +115,12 @@ impl Document {
         })
     }
 
+    pub fn find_layer_mut(&mut self, id: LayerId) -> Option<&mut Layer> {
+        self.artboards
+            .iter_mut()
+            .find_map(|artboard| artboard.layers.iter_mut().find(|layer| layer.id == id))
+    }
+
     pub fn hit_test(&self, world_position: cgmath::Point2<f32>) -> Option<ArtboardId> {
         self.artboards
             .iter()
